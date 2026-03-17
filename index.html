@@ -342,6 +342,51 @@ sendMessage()
 })
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script>
+
+const supabaseUrl = "https://lnfndmakffuqddfrwlqj.supabase.co";
+const supabaseKey = "sb_publishable_PWEwP03MzgGMGCD2ii2lLg_2lljwtLK";
+
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+// send message to database
+async function sendMessage(username, room, message) {
+
+  await supabaseClient
+    .from("messages")
+    .insert([
+      { username: username, room: room, message: message }
+    ]);
+
+}
+
+// load messages
+async function loadMessages(room) {
+
+  const { data } = await supabaseClient
+    .from("messages")
+    .select("*")
+    .eq("room", room)
+    .order("created_at", { ascending: true });
+
+  return data;
+
+}
+
+// realtime messages
+supabaseClient
+  .channel("messages")
+  .on(
+    "postgres_changes",
+    { event: "INSERT", schema: "public", table: "messages" },
+    payload => {
+      console.log("New message:", payload.new);
+    }
+  )
+  .subscribe();
+
+</script>
 </body>
 </html>
