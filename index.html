@@ -1,392 +1,868 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>MVP Chatroom</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{
-font-family: Arial, sans-serif;
-background:#111;
-color:#eee;
-margin:0;
-padding:0;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-}
-
-.container{
-width:95%;
-max-width:700px;
-background:#1e1e1e;
-padding:20px;
-border-radius:10px;
-box-shadow:0 0 20px rgba(0,0,0,0.4);
-}
-
-h1,h2{
-text-align:center;
-}
-
-button{
-padding:10px;
-margin-top:10px;
-width:100%;
-cursor:pointer;
-border:none;
-border-radius:6px;
-background:#4a8cff;
-color:white;
-font-size:16px;
-}
-
-input{
-padding:10px;
-margin-top:10px;
-width:100%;
-border-radius:6px;
-border:1px solid #444;
-background:#222;
-color:white;
-}
-
-.hidden{
-display:none;
-}
-
-#chatBox{
-height:250px;
-overflow-y:auto;
-border:1px solid #444;
-padding:10px;
-margin-top:10px;
-background:#000;
-}
-
-.userList{
-border:1px solid #444;
-padding:10px;
-margin-top:10px;
-background:#000;
-}
-
-.topBar{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:10px;
-}
-
-.small{
-font-size:12px;
-opacity:0.7;
-}
-
-.message{
-margin:5px 0;
-}
-
-.host{
-color:#ffcc00;
-}
-
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<!-- SIGNUP -->
-<div id="signupScreen">
-<h1>Create Account</h1>
-<input id="signupUser" placeholder="Username">
-<input id="signupPass" type="password" placeholder="Password">
-<input id="signupPass2" type="password" placeholder="Confirm Password">
-<button onclick="signup()">Create Account</button>
-<p class="small">Already have account?</p>
-<button onclick="showLogin()">Login</button>
-</div>
-
-<!-- LOGIN -->
-<div id="loginScreen" class="hidden">
-<h1>Login</h1>
-<input id="loginUser" placeholder="Username">
-<input id="loginPass" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-<button onclick="showSignup()">Back</button>
-</div>
-
-<!-- MENU -->
-<div id="menuScreen" class="hidden">
-<h1>Main Menu</h1>
-<button onclick="hostRoom()">Host Chat Room</button>
-<input id="roomCodeInput" placeholder="Enter Room Code">
-<button onclick="joinRoom()">Join Chat Room</button>
-</div>
-
-<!-- CHAT ROOM -->
-<div id="chatScreen" class="hidden">
-
-<div class="topBar">
-<div>
-Room Code: <span id="roomCode"></span>
-</div>
-<button onclick="leaveRoom()">Leave</button>
-</div>
-
-<div class="userList">
-<strong>Users in room</strong>
-<div id="users"></div>
-</div>
-
-<div id="chatBox"></div>
-
-<input id="messageInput" placeholder="Type message (max 200 chars)" maxlength="200">
-<button onclick="sendMessage()">Send</button>
-
-</div>
-
-</div>
-
-<script>
-
-let usersDB = JSON.parse(localStorage.getItem("users") || "{}");
-let currentUser = null;
-let room = null;
-let messages = [];
-let usersInRoom = [];
-
-function showSignup(){
-document.getElementById("signupScreen").classList.remove("hidden")
-document.getElementById("loginScreen").classList.add("hidden")
-}
-
-function showLogin(){
-document.getElementById("signupScreen").classList.add("hidden")
-document.getElementById("loginScreen").classList.remove("hidden")
-}
-
-function signup(){
-
-let u=document.getElementById("signupUser").value
-let p=document.getElementById("signupPass").value
-let p2=document.getElementById("signupPass2").value
-
-if(!u||!p){alert("Fill all fields");return}
-
-if(p!==p2){alert("Passwords do not match");return}
-
-if(usersDB[u]){alert("Username taken");return}
-
-usersDB[u]=p
-localStorage.setItem("users",JSON.stringify(usersDB))
-
-alert("Account created")
-showLogin()
-}
-
-function login(){
-
-let u=document.getElementById("loginUser").value
-let p=document.getElementById("loginPass").value
-
-if(usersDB[u]===p){
-
-currentUser=u
-
-document.getElementById("loginScreen").classList.add("hidden")
-document.getElementById("menuScreen").classList.remove("hidden")
-
-}else{
-
-alert("Wrong login")
-
-}
-}
-
-function generateCode(){
-
-const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-let code=""
-
-for(let i=0;i<6;i++){
-
-code+=chars[Math.floor(Math.random()*chars.length)]
-
-}
-
-return code
-}
-
-function hostRoom(){
-
-room=generateCode()
-usersInRoom=[currentUser]
-messages=[]
-
-openRoom()
-
-}
-
-function joinRoom(){
-
-let code=document.getElementById("roomCodeInput").value.trim()
-
-if(!code){alert("Enter code");return}
-
-room=code
-usersInRoom=[currentUser]
-messages=[]
-
-openRoom()
-
-}
-
-function openRoom(){
-
-document.getElementById("menuScreen").classList.add("hidden")
-document.getElementById("chatScreen").classList.remove("hidden")
-
-document.getElementById("roomCode").innerText=room
-
-updateUsers()
-renderMessages()
-
-}
-
-function leaveRoom(){
-
-document.getElementById("chatScreen").classList.add("hidden")
-document.getElementById("menuScreen").classList.remove("hidden")
-
-}
-
-function updateUsers(){
-
-let box=document.getElementById("users")
-box.innerHTML=""
-
-usersInRoom.forEach(u=>{
-
-let div=document.createElement("div")
-
-if(u===usersInRoom[0]){
-
-div.innerHTML=u+" <span class='host'>(host)</span>"
-
-}else{
-
-div.innerText=u
-
-}
-
-box.appendChild(div)
-
-})
-
-}
-
-function sendMessage(){
-
-let text=document.getElementById("messageInput").value.trim()
-
-if(!text)return
-
-let time=new Date().toLocaleTimeString()
-
-messages.push({
-user:currentUser,
-text:text,
-time:time
-})
-
-document.getElementById("messageInput").value=""
-
-renderMessages()
-
-}
-
-function renderMessages(){
-
-let box=document.getElementById("chatBox")
-
-box.innerHTML=""
-
-messages.forEach(m=>{
-
-let div=document.createElement("div")
-div.className="message"
-
-div.innerHTML="<b>"+m.user+"</b> <span class='small'>"+m.time+"</span>: "+m.text
-
-box.appendChild(div)
-
-})
-
-box.scrollTop=box.scrollHeight
-
-}
-
-document.getElementById("messageInput")?.addEventListener("keypress",function(e){
-
-if(e.key==="Enter"){
-
-sendMessage()
-
-}
-
-})
-
-</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-
-const supabaseUrl = "https://lnfndmakffuqddfrwlqj.supabase.co";
-const supabaseKey = "sb_publishable_PWEwP03MzgGMGCD2ii2lLg_2lljwtLK";
-
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-// send message to database
-async function sendMessage(username, room, message) {
-
-  await supabaseClient
-    .from("messages")
-    .insert([
-      { username: username, room: room, message: message }
-    ]);
-
-}
-
-// load messages
-async function loadMessages(room) {
-
-  const { data } = await supabaseClient
-    .from("messages")
-    .select("*")
-    .eq("room", room)
-    .order("created_at", { ascending: true });
-
-  return data;
-
-}
-
-// realtime messages
-supabaseClient
-  .channel("messages")
-  .on(
-    "postgres_changes",
-    { event: "INSERT", schema: "public", table: "messages" },
-    payload => {
-      console.log("New message:", payload.new);
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Supabase Room Chat</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --bubble-me: #2563eb;
+      --bubble-other: #374151;
+      --bubble-system: #334155;
+      --host: #f59e0b;
     }
-  )
-  .subscribe();
 
-</script>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #1e293b 0%, #0b1120 55%);
+      min-height: 100vh;
+    }
+
+    .app-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .card {
+      width: min(980px, 100%);
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 18px 35px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(6px);
+    }
+
+    h1, h2, h3 { margin: 0 0 12px; }
+    p { margin: 8px 0; color: var(--muted); }
+    .hidden { display: none !important; }
+
+    input, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      padding: 11px 12px;
+      font-size: 14px;
+    }
+
+    input {
+      background: #0b1220;
+      color: var(--text);
+      margin: 8px 0;
+    }
+
+    button {
+      cursor: pointer;
+      background: #1e293b;
+      color: #fff;
+      margin: 8px 0;
+      font-weight: 600;
+    }
+
+    button.primary { background: #2563eb; }
+    button.success { background: #15803d; }
+    button.warning { background: #a16207; }
+    button.danger { background: #b91c1c; }
+    button.ghost { background: transparent; }
+
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+
+    .auth-wrap {
+      max-width: 420px;
+      margin: 0 auto;
+      transition: all 0.25s ease;
+    }
+
+    .hint { font-size: 12px; color: var(--muted); }
+    .error { color: #fecaca; font-size: 12px; }
+    .ok { color: #86efac; font-size: 12px; }
+
+    .menu-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+
+    .panel {
+      background: var(--panel-2);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .saved-room {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #334155;
+      padding: 6px 0;
+    }
+
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 12px;
+      min-height: 70vh;
+    }
+
+    .sidebar, .chat-main {
+      background: var(--panel-2);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .member-list {
+      overflow: auto;
+      max-height: 230px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 8px;
+      background: #0b1220;
+    }
+
+    .member {
+      padding: 7px;
+      border-radius: 8px;
+      margin: 4px 0;
+      background: #0f172a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .member.current { border: 1px solid #3b82f6; }
+    .badge {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: #334155;
+      color: #e2e8f0;
+    }
+
+    .badge.host { background: #78350f; color: #fcd34d; }
+
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+
+    #chatBox {
+      flex: 1;
+      overflow: auto;
+      padding: 8px;
+      background: #0b1220;
+      border-radius: 10px;
+      border: 1px solid #334155;
+    }
+
+    .msg {
+      margin: 10px 0;
+      display: flex;
+      flex-direction: column;
+      max-width: 85%;
+    }
+
+    .msg.self { margin-left: auto; align-items: flex-end; }
+
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .bubble {
+      padding: 10px;
+      border-radius: 10px;
+      background: var(--bubble-other);
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.self .bubble { background: var(--bubble-me); }
+    .msg.system { margin: 8px auto; align-items: center; }
+    .msg.system .bubble {
+      background: var(--bubble-system);
+      color: #dbeafe;
+      font-size: 13px;
+      border: 1px dashed #64748b;
+    }
+
+    .typing { font-size: 12px; color: #93c5fd; height: 16px; padding: 2px 4px; }
+
+    .composer { margin-top: 8px; }
+
+    .emoji-strip {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .emoji-strip button {
+      width: auto;
+      min-width: 38px;
+      padding: 8px;
+      margin: 0;
+    }
+
+    .small-btn {
+      width: auto;
+      margin: 0;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .status {
+      font-size: 12px;
+      min-height: 16px;
+      color: #cbd5e1;
+    }
+
+    @media (max-width: 820px) {
+      .chat-layout { grid-template-columns: 1fr; }
+      .sidebar { order: 2; }
+      .chat-main { order: 1; min-height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <div class="card">
+      <div id="authScreen" class="auth-wrap">
+        <h1>Welcome to Room Chat</h1>
+        <p>Fast room chat powered by Supabase.</p>
+
+        <div id="signupPanel">
+          <h3>Sign up</h3>
+          <input id="signupUser" placeholder="Choose username" maxlength="24" />
+          <input id="signupPass" type="password" placeholder="Choose password" />
+          <div id="passwordStrength" class="hint">Password strength: -</div>
+          <button class="primary" id="signupBtn">Create account</button>
+          <div id="signupStatus" class="error"></div>
+          <button class="ghost" id="toLogin">I already have an account</button>
+        </div>
+
+        <div id="loginPanel" class="hidden">
+          <h3>Log in</h3>
+          <input id="loginUser" placeholder="Username" maxlength="24" />
+          <input id="loginPass" type="password" placeholder="Password" />
+          <button class="primary" id="loginBtn">Log in</button>
+          <div id="loginStatus" class="error"></div>
+          <button class="ghost" id="toSignup">Create a new account</button>
+        </div>
+      </div>
+
+      <div id="menuScreen" class="hidden">
+        <div class="row" style="align-items:center; justify-content:space-between;">
+          <h2 style="margin:0;">Hi, <span id="menuUser"></span></h2>
+          <button id="logoutBtn" class="small-btn ghost">Logout</button>
+        </div>
+        <div class="menu-grid">
+          <div class="panel">
+            <h3>Create room</h3>
+            <input id="roomNameInput" placeholder="Room name" maxlength="48" />
+            <button id="createRoomBtn" class="success">Create room</button>
+          </div>
+
+          <div class="panel">
+            <h3>Join room</h3>
+            <input id="joinCodeInput" placeholder="Room code" maxlength="10" />
+            <button id="joinRoomBtn" class="primary">Join room</button>
+          </div>
+
+          <div class="panel">
+            <h3>Saved rooms</h3>
+            <div id="savedRooms"></div>
+          </div>
+        </div>
+        <div id="menuStatus" class="status"></div>
+      </div>
+
+      <div id="chatScreen" class="hidden">
+        <div class="chat-layout">
+          <aside class="sidebar">
+            <h3>Members</h3>
+            <div class="member-list" id="memberList"></div>
+            <div class="status" id="sidebarStatus"></div>
+            <hr style="border-color:#334155; width:100%;" />
+            <div id="hostControls" class="hidden">
+              <h3>Host controls</h3>
+              <button id="closeRoomBtn" class="danger">Close room</button>
+              <p class="hint">Kick users from the member list.</p>
+            </div>
+            <button id="leaveRoomBtn" class="warning">Leave room</button>
+          </aside>
+
+          <section class="chat-main">
+            <div class="chat-header">
+              <div>
+                <strong id="roomLabel"></strong>
+                <div class="hint">Code: <span id="roomCodeLabel"></span></div>
+              </div>
+              <div class="row" style="width:auto;">
+                <button id="copyCodeBtn" class="small-btn">Copy room code</button>
+              </div>
+            </div>
+
+            <div id="chatBox"></div>
+            <div id="typingIndicator" class="typing"></div>
+            <div id="chatStatus" class="status"></div>
+
+            <div class="composer">
+              <input id="messageInput" placeholder="Type a message..." maxlength="500" />
+              <div class="emoji-strip" id="emojiStrip">
+                <button type="button">😀</button><button type="button">😂</button><button type="button">🔥</button>
+                <button type="button">👍</button><button type="button">❤️</button><button type="button">🎉</button>
+                <button type="button">🙌</button><button type="button">😎</button>
+              </div>
+              <div class="row">
+                <button id="sendBtn" class="primary">Send</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabaseUrl = "https://lnfndmakffuqddfrwlqj.supabase.co";
+    const supabaseKey = "sb_publishable_PWEwP03MzgGMGCD2ii2lLg_2lljwtLK";
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    const appState = {
+      usersDB: JSON.parse(localStorage.getItem("chat_users") || "{}"),
+      currentUser: JSON.parse(localStorage.getItem("chat_session") || "null"),
+      room: null,
+      roomMeta: null,
+      members: [],
+      messages: [],
+      messagesSubscription: null,
+      roomSubscription: null,
+      membersSubscription: null,
+      typingChannel: null,
+      typingUsers: new Set(),
+      typingTimer: null
+    };
+
+    const savedRoomsKey = "chat_saved_rooms";
+    const els = {
+      authScreen: document.getElementById("authScreen"),
+      signupPanel: document.getElementById("signupPanel"),
+      loginPanel: document.getElementById("loginPanel"),
+      signupUser: document.getElementById("signupUser"),
+      signupPass: document.getElementById("signupPass"),
+      passwordStrength: document.getElementById("passwordStrength"),
+      signupStatus: document.getElementById("signupStatus"),
+      loginUser: document.getElementById("loginUser"),
+      loginPass: document.getElementById("loginPass"),
+      loginStatus: document.getElementById("loginStatus"),
+      menuScreen: document.getElementById("menuScreen"),
+      menuUser: document.getElementById("menuUser"),
+      menuStatus: document.getElementById("menuStatus"),
+      roomNameInput: document.getElementById("roomNameInput"),
+      joinCodeInput: document.getElementById("joinCodeInput"),
+      savedRooms: document.getElementById("savedRooms"),
+      chatScreen: document.getElementById("chatScreen"),
+      roomLabel: document.getElementById("roomLabel"),
+      roomCodeLabel: document.getElementById("roomCodeLabel"),
+      memberList: document.getElementById("memberList"),
+      sidebarStatus: document.getElementById("sidebarStatus"),
+      hostControls: document.getElementById("hostControls"),
+      chatBox: document.getElementById("chatBox"),
+      messageInput: document.getElementById("messageInput"),
+      typingIndicator: document.getElementById("typingIndicator"),
+      chatStatus: document.getElementById("chatStatus")
+    };
+
+    function hashPassword(pass) {
+      return btoa(unescape(encodeURIComponent(pass))).split("").reverse().join("");
+    }
+
+    function passwordScore(pass) {
+      let score = 0;
+      if (pass.length >= 8) score++;
+      if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+      if (/\d/.test(pass)) score++;
+      if (/[^A-Za-z0-9]/.test(pass)) score++;
+      return score;
+    }
+
+    function renderPasswordStrength() {
+      const p = els.signupPass.value || "";
+      const score = passwordScore(p);
+      const labels = ["Very weak", "Weak", "Okay", "Strong", "Very strong"];
+      els.passwordStrength.textContent = `Password strength: ${labels[score]}`;
+    }
+
+    function switchAuth(showLogin) {
+      els.signupPanel.classList.toggle("hidden", showLogin);
+      els.loginPanel.classList.toggle("hidden", !showLogin);
+    }
+
+    function showScreen(screen) {
+      els.authScreen.classList.add("hidden");
+      els.menuScreen.classList.add("hidden");
+      els.chatScreen.classList.add("hidden");
+      screen.classList.remove("hidden");
+    }
+
+    function setStatus(el, message, isError = false) {
+      el.textContent = message || "";
+      el.style.color = isError ? "#fecaca" : "#cbd5e1";
+    }
+
+    function generateCode() {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let out = "";
+      for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+      return out;
+    }
+
+    function getSavedRooms() {
+      return JSON.parse(localStorage.getItem(savedRoomsKey) || "[]");
+    }
+
+    function saveRoomLocally(roomCode, roomName) {
+      const rooms = getSavedRooms();
+      const filtered = rooms.filter(r => r.room_code !== roomCode);
+      filtered.unshift({ room_code: roomCode, room_name: roomName, last_seen: Date.now() });
+      localStorage.setItem(savedRoomsKey, JSON.stringify(filtered.slice(0, 12)));
+      renderSavedRooms();
+    }
+
+    function renderSavedRooms() {
+      const rooms = getSavedRooms();
+      if (!rooms.length) {
+        els.savedRooms.innerHTML = "<p class='hint'>No rooms yet.</p>";
+        return;
+      }
+      els.savedRooms.innerHTML = "";
+      rooms.forEach((r) => {
+        const div = document.createElement("div");
+        div.className = "saved-room";
+        div.innerHTML = `<span>${r.room_name || "Room"} (${r.room_code})</span>`;
+        const b = document.createElement("button");
+        b.className = "small-btn";
+        b.textContent = "Join";
+        b.onclick = () => joinRoom(r.room_code);
+        div.appendChild(b);
+        els.savedRooms.appendChild(div);
+      });
+    }
+
+    function renderMembers() {
+      els.memberList.innerHTML = "";
+      appState.members
+        .filter(m => m.is_online)
+        .forEach((m) => {
+          const row = document.createElement("div");
+          row.className = "member" + (m.username === appState.currentUser?.username ? " current" : "");
+
+          const label = document.createElement("div");
+          label.innerHTML = `<strong>${m.username}</strong>`;
+
+          const right = document.createElement("div");
+          if (m.is_host) {
+            const hostBadge = document.createElement("span");
+            hostBadge.className = "badge host";
+            hostBadge.textContent = "Host";
+            right.appendChild(hostBadge);
+          }
+
+          const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+          if (isRoomHost && m.username !== appState.currentUser?.username) {
+            const kickBtn = document.createElement("button");
+            kickBtn.className = "small-btn danger";
+            kickBtn.textContent = "Kick";
+            kickBtn.onclick = () => kickMember(m.username);
+            right.appendChild(kickBtn);
+          }
+
+          row.appendChild(label);
+          row.appendChild(right);
+          els.memberList.appendChild(row);
+        });
+      setStatus(els.sidebarStatus, `${appState.members.filter(m => m.is_online).length} online`);
+    }
+
+    function renderMessages() {
+      els.chatBox.innerHTML = "";
+      appState.messages.forEach((m) => {
+        const wrap = document.createElement("div");
+        const isSelf = m.username === appState.currentUser?.username;
+        const isSystem = m.message_type === "system";
+        wrap.className = `msg${isSelf ? " self" : ""}${isSystem ? " system" : ""}`;
+
+        const ts = new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = isSystem ? ts : `${m.username} • ${ts}`;
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.textContent = m.message;
+
+        wrap.appendChild(meta);
+        wrap.appendChild(bubble);
+
+        const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+        if (isRoomHost && !isSystem) {
+          const del = document.createElement("button");
+          del.className = "small-btn danger";
+          del.textContent = "Delete";
+          del.onclick = () => deleteMessage(m.id);
+          wrap.appendChild(del);
+        }
+
+        els.chatBox.appendChild(wrap);
+      });
+      els.chatBox.scrollTop = els.chatBox.scrollHeight;
+    }
+
+    function updateTypingIndicator() {
+      const list = [...appState.typingUsers];
+      if (!list.length) {
+        els.typingIndicator.textContent = "";
+      } else {
+        els.typingIndicator.textContent = `${list.join(", ")} typing...`;
+      }
+    }
+
+    async function sendDbMessage(text, type = "text", username = appState.currentUser.username) {
+      const { error } = await supabaseClient.from("messages").insert([{ username, room: appState.room, message: text, message_type: type }]);
+      if (error) throw error;
+    }
+
+    async function createRoom() {
+      const roomName = els.roomNameInput.value.trim();
+      if (!roomName) return setStatus(els.menuStatus, "Room name required.", true);
+
+      setStatus(els.menuStatus, "Creating room...");
+      let roomCode = generateCode();
+      for (let i = 0; i < 5; i++) {
+        const { data } = await supabaseClient.from("rooms").select("room_code").eq("room_code", roomCode).maybeSingle();
+        if (!data) break;
+        roomCode = generateCode();
+      }
+
+      const payload = {
+        room_code: roomCode,
+        room_name: roomName,
+        host_username: appState.currentUser.username,
+        is_active: true
+      };
+
+      const { error } = await supabaseClient.from("rooms").insert([payload]);
+      if (error) return setStatus(els.menuStatus, `Failed to create room: ${error.message}`, true);
+
+      await enterRoom(roomCode, true);
+    }
+
+    async function joinRoom(codeArg) {
+      const code = (codeArg || els.joinCodeInput.value).trim().toUpperCase();
+      if (!code) return setStatus(els.menuStatus, "Enter room code.", true);
+
+      setStatus(els.menuStatus, "Joining room...");
+      const { data: roomData, error: roomError } = await supabaseClient
+        .from("rooms")
+        .select("*")
+        .eq("room_code", code)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (roomError || !roomData) return setStatus(els.menuStatus, "Room not found or closed.", true);
+      await enterRoom(code, false, roomData);
+    }
+
+    async function enterRoom(code, created = false, roomData = null) {
+      appState.room = code;
+      const { data: room } = roomData
+        ? { data: roomData }
+        : await supabaseClient.from("rooms").select("*").eq("room_code", code).maybeSingle();
+      appState.roomMeta = room;
+
+      const isHost = room.host_username === appState.currentUser.username;
+      const { data: existingMember } = await supabaseClient
+        .from("members")
+        .select("id")
+        .eq("room_code", code)
+        .eq("username", appState.currentUser.username)
+        .maybeSingle();
+
+      if (existingMember?.id) {
+        await supabaseClient.from("members").update({ is_online: true, is_host: isHost }).eq("id", existingMember.id);
+      } else {
+        await supabaseClient.from("members").insert([{ room_code: code, username: appState.currentUser.username, is_host: isHost, is_online: true }]);
+      }
+
+      if (created) {
+        await sendDbMessage(`${appState.currentUser.username} created the room`, "system");
+      } else {
+        await sendDbMessage(`${appState.currentUser.username} joined the room`, "system");
+      }
+
+      saveRoomLocally(code, room.room_name);
+      await loadRoomData();
+      subscribeToRealtime();
+
+      els.roomLabel.textContent = room.room_name;
+      els.roomCodeLabel.textContent = code;
+      els.hostControls.classList.toggle("hidden", !isHost);
+      showScreen(els.chatScreen);
+      setStatus(els.chatStatus, "Connected");
+    }
+
+    async function loadRoomData() {
+      const [membersRes, messagesRes] = await Promise.all([
+        supabaseClient.from("members").select("*").eq("room_code", appState.room).order("joined_at", { ascending: true }),
+        supabaseClient.from("messages").select("*").eq("room", appState.room).order("created_at", { ascending: true })
+      ]);
+      appState.members = membersRes.data || [];
+      appState.messages = messagesRes.data || [];
+      renderMembers();
+      renderMessages();
+    }
+
+    function cleanupSubscriptions() {
+      [appState.messagesSubscription, appState.membersSubscription, appState.roomSubscription, appState.typingChannel].forEach((sub) => {
+        if (sub) supabaseClient.removeChannel(sub);
+      });
+      appState.messagesSubscription = null;
+      appState.membersSubscription = null;
+      appState.roomSubscription = null;
+      appState.typingChannel = null;
+      appState.typingUsers.clear();
+      updateTypingIndicator();
+    }
+
+    function subscribeToRealtime() {
+      cleanupSubscriptions();
+
+      appState.messagesSubscription = supabaseClient
+        .channel(`messages-${appState.room}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `room=eq.${appState.room}` }, payload => {
+          appState.messages.push(payload.new);
+          renderMessages();
+        })
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages", filter: `room=eq.${appState.room}` }, payload => {
+          appState.messages = appState.messages.filter(m => m.id !== payload.old.id);
+          renderMessages();
+        })
+        .subscribe();
+
+      appState.membersSubscription = supabaseClient
+        .channel(`members-${appState.room}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "members", filter: `room_code=eq.${appState.room}` }, async () => {
+          const { data } = await supabaseClient.from("members").select("*").eq("room_code", appState.room);
+          appState.members = data || [];
+          renderMembers();
+        })
+        .subscribe();
+
+      appState.roomSubscription = supabaseClient
+        .channel(`room-${appState.room}`)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `room_code=eq.${appState.room}` }, payload => {
+          appState.roomMeta = payload.new;
+          const stillActive = payload.new.is_active;
+          if (!stillActive) {
+            setStatus(els.chatStatus, "Room closed by host.", true);
+            setTimeout(() => leaveRoom(false), 1200);
+          }
+        })
+        .subscribe();
+
+      appState.typingChannel = supabaseClient.channel(`typing-${appState.room}`)
+        .on("broadcast", { event: "typing" }, ({ payload }) => {
+          if (!payload || payload.username === appState.currentUser.username) return;
+          if (payload.room !== appState.room) return;
+          if (payload.active) {
+            appState.typingUsers.add(payload.username);
+            updateTypingIndicator();
+          } else {
+            appState.typingUsers.delete(payload.username);
+            updateTypingIndicator();
+          }
+        })
+        .subscribe();
+    }
+
+    async function sendMessage() {
+      const text = els.messageInput.value.trim();
+      if (!text) return;
+      els.messageInput.value = "";
+      try {
+        await sendDbMessage(text, "text");
+        await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: false } });
+      } catch (error) {
+        setStatus(els.chatStatus, `Send failed: ${error.message}`, true);
+      }
+    }
+
+    async function deleteMessage(messageId) {
+      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+      if (!isRoomHost) return;
+      const { error } = await supabaseClient.from("messages").delete().eq("id", messageId).eq("room", appState.room);
+      if (error) setStatus(els.chatStatus, `Delete failed: ${error.message}`, true);
+    }
+
+    async function kickMember(username) {
+      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+      if (!isRoomHost) return;
+      await supabaseClient.from("members").update({ is_online: false }).eq("room_code", appState.room).eq("username", username);
+      await sendDbMessage(`${username} left the room`, "system");
+    }
+
+    async function closeRoom() {
+      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+      if (!isRoomHost) return;
+      await sendDbMessage(`${appState.currentUser.username} closed the room`, "system");
+      await supabaseClient.from("rooms").update({ is_active: false }).eq("room_code", appState.room);
+      setTimeout(() => leaveRoom(false), 600);
+    }
+
+    async function leaveRoom(announce = true) {
+      const username = appState.currentUser?.username;
+      const roomCode = appState.room;
+      if (username && roomCode) {
+        await supabaseClient.from("members").update({ is_online: false }).eq("room_code", roomCode).eq("username", username);
+        if (announce) await sendDbMessage(`${username} left the room`, "system");
+      }
+      cleanupSubscriptions();
+      appState.room = null;
+      appState.roomMeta = null;
+      appState.messages = [];
+      appState.members = [];
+      showScreen(els.menuScreen);
+      setStatus(els.menuStatus, "Left room.");
+    }
+
+    function setupEvents() {
+      document.getElementById("toLogin").onclick = () => switchAuth(true);
+      document.getElementById("toSignup").onclick = () => switchAuth(false);
+
+      els.signupPass.addEventListener("input", renderPasswordStrength);
+
+      document.getElementById("signupBtn").onclick = () => {
+        const username = els.signupUser.value.trim();
+        const pass = els.signupPass.value;
+        if (!username || !pass) return (els.signupStatus.textContent = "Fill all fields.");
+        if (appState.usersDB[username]) return (els.signupStatus.textContent = "Username already taken.");
+        if (passwordScore(pass) < 2) return (els.signupStatus.textContent = "Password too weak.");
+
+        appState.usersDB[username] = hashPassword(pass);
+        localStorage.setItem("chat_users", JSON.stringify(appState.usersDB));
+        els.signupStatus.className = "ok";
+        els.signupStatus.textContent = "Account created. You can log in.";
+        switchAuth(true);
+      };
+
+      document.getElementById("loginBtn").onclick = () => {
+        const username = els.loginUser.value.trim();
+        const pass = els.loginPass.value;
+        if (appState.usersDB[username] !== hashPassword(pass)) {
+          els.loginStatus.textContent = "Invalid credentials.";
+          return;
+        }
+        appState.currentUser = { username };
+        localStorage.setItem("chat_session", JSON.stringify(appState.currentUser));
+        bootToMenu();
+      };
+
+      document.getElementById("logoutBtn").onclick = () => {
+        localStorage.removeItem("chat_session");
+        appState.currentUser = null;
+        showScreen(els.authScreen);
+      };
+
+      document.getElementById("createRoomBtn").onclick = createRoom;
+      document.getElementById("joinRoomBtn").onclick = () => joinRoom();
+      document.getElementById("sendBtn").onclick = sendMessage;
+      document.getElementById("leaveRoomBtn").onclick = () => leaveRoom(true);
+      document.getElementById("closeRoomBtn").onclick = closeRoom;
+
+      document.getElementById("copyCodeBtn").onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(appState.room || "");
+          setStatus(els.chatStatus, "Room code copied");
+        } catch {
+          setStatus(els.chatStatus, "Unable to copy code", true);
+        }
+      };
+
+      els.messageInput.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        } else {
+          clearTimeout(appState.typingTimer);
+          if (appState.typingChannel && appState.room) {
+            await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: true } });
+            appState.typingTimer = setTimeout(async () => {
+              await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: false } });
+            }, 900);
+          }
+        }
+      });
+
+      document.getElementById("emojiStrip").addEventListener("click", (e) => {
+        if (e.target.tagName !== "BUTTON") return;
+        els.messageInput.value += e.target.textContent;
+        els.messageInput.focus();
+      });
+
+      window.addEventListener("beforeunload", () => {
+        if (appState.room && appState.currentUser) {
+          supabaseClient.from("members").update({ is_online: false }).eq("room_code", appState.room).eq("username", appState.currentUser.username);
+        }
+      });
+    }
+
+    function bootToMenu() {
+      els.menuUser.textContent = appState.currentUser.username;
+      showScreen(els.menuScreen);
+      renderSavedRooms();
+      setStatus(els.menuStatus, "");
+    }
+
+    function init() {
+      setupEvents();
+      renderPasswordStrength();
+      renderSavedRooms();
+      if (appState.currentUser?.username) bootToMenu();
+      else showScreen(els.authScreen);
+    }
+
+    init();
+  </script>
 </body>
 </html>
