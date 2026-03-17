@@ -1,0 +1,347 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MVP Chatroom</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{
+font-family: Arial, sans-serif;
+background:#111;
+color:#eee;
+margin:0;
+padding:0;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+
+.container{
+width:95%;
+max-width:700px;
+background:#1e1e1e;
+padding:20px;
+border-radius:10px;
+box-shadow:0 0 20px rgba(0,0,0,0.4);
+}
+
+h1,h2{
+text-align:center;
+}
+
+button{
+padding:10px;
+margin-top:10px;
+width:100%;
+cursor:pointer;
+border:none;
+border-radius:6px;
+background:#4a8cff;
+color:white;
+font-size:16px;
+}
+
+input{
+padding:10px;
+margin-top:10px;
+width:100%;
+border-radius:6px;
+border:1px solid #444;
+background:#222;
+color:white;
+}
+
+.hidden{
+display:none;
+}
+
+#chatBox{
+height:250px;
+overflow-y:auto;
+border:1px solid #444;
+padding:10px;
+margin-top:10px;
+background:#000;
+}
+
+.userList{
+border:1px solid #444;
+padding:10px;
+margin-top:10px;
+background:#000;
+}
+
+.topBar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px;
+}
+
+.small{
+font-size:12px;
+opacity:0.7;
+}
+
+.message{
+margin:5px 0;
+}
+
+.host{
+color:#ffcc00;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- SIGNUP -->
+<div id="signupScreen">
+<h1>Create Account</h1>
+<input id="signupUser" placeholder="Username">
+<input id="signupPass" type="password" placeholder="Password">
+<input id="signupPass2" type="password" placeholder="Confirm Password">
+<button onclick="signup()">Create Account</button>
+<p class="small">Already have account?</p>
+<button onclick="showLogin()">Login</button>
+</div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="hidden">
+<h1>Login</h1>
+<input id="loginUser" placeholder="Username">
+<input id="loginPass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<button onclick="showSignup()">Back</button>
+</div>
+
+<!-- MENU -->
+<div id="menuScreen" class="hidden">
+<h1>Main Menu</h1>
+<button onclick="hostRoom()">Host Chat Room</button>
+<input id="roomCodeInput" placeholder="Enter Room Code">
+<button onclick="joinRoom()">Join Chat Room</button>
+</div>
+
+<!-- CHAT ROOM -->
+<div id="chatScreen" class="hidden">
+
+<div class="topBar">
+<div>
+Room Code: <span id="roomCode"></span>
+</div>
+<button onclick="leaveRoom()">Leave</button>
+</div>
+
+<div class="userList">
+<strong>Users in room</strong>
+<div id="users"></div>
+</div>
+
+<div id="chatBox"></div>
+
+<input id="messageInput" placeholder="Type message (max 200 chars)" maxlength="200">
+<button onclick="sendMessage()">Send</button>
+
+</div>
+
+</div>
+
+<script>
+
+let usersDB = JSON.parse(localStorage.getItem("users") || "{}");
+let currentUser = null;
+let room = null;
+let messages = [];
+let usersInRoom = [];
+
+function showSignup(){
+document.getElementById("signupScreen").classList.remove("hidden")
+document.getElementById("loginScreen").classList.add("hidden")
+}
+
+function showLogin(){
+document.getElementById("signupScreen").classList.add("hidden")
+document.getElementById("loginScreen").classList.remove("hidden")
+}
+
+function signup(){
+
+let u=document.getElementById("signupUser").value
+let p=document.getElementById("signupPass").value
+let p2=document.getElementById("signupPass2").value
+
+if(!u||!p){alert("Fill all fields");return}
+
+if(p!==p2){alert("Passwords do not match");return}
+
+if(usersDB[u]){alert("Username taken");return}
+
+usersDB[u]=p
+localStorage.setItem("users",JSON.stringify(usersDB))
+
+alert("Account created")
+showLogin()
+}
+
+function login(){
+
+let u=document.getElementById("loginUser").value
+let p=document.getElementById("loginPass").value
+
+if(usersDB[u]===p){
+
+currentUser=u
+
+document.getElementById("loginScreen").classList.add("hidden")
+document.getElementById("menuScreen").classList.remove("hidden")
+
+}else{
+
+alert("Wrong login")
+
+}
+}
+
+function generateCode(){
+
+const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+let code=""
+
+for(let i=0;i<6;i++){
+
+code+=chars[Math.floor(Math.random()*chars.length)]
+
+}
+
+return code
+}
+
+function hostRoom(){
+
+room=generateCode()
+usersInRoom=[currentUser]
+messages=[]
+
+openRoom()
+
+}
+
+function joinRoom(){
+
+let code=document.getElementById("roomCodeInput").value.trim()
+
+if(!code){alert("Enter code");return}
+
+room=code
+usersInRoom=[currentUser]
+messages=[]
+
+openRoom()
+
+}
+
+function openRoom(){
+
+document.getElementById("menuScreen").classList.add("hidden")
+document.getElementById("chatScreen").classList.remove("hidden")
+
+document.getElementById("roomCode").innerText=room
+
+updateUsers()
+renderMessages()
+
+}
+
+function leaveRoom(){
+
+document.getElementById("chatScreen").classList.add("hidden")
+document.getElementById("menuScreen").classList.remove("hidden")
+
+}
+
+function updateUsers(){
+
+let box=document.getElementById("users")
+box.innerHTML=""
+
+usersInRoom.forEach(u=>{
+
+let div=document.createElement("div")
+
+if(u===usersInRoom[0]){
+
+div.innerHTML=u+" <span class='host'>(host)</span>"
+
+}else{
+
+div.innerText=u
+
+}
+
+box.appendChild(div)
+
+})
+
+}
+
+function sendMessage(){
+
+let text=document.getElementById("messageInput").value.trim()
+
+if(!text)return
+
+let time=new Date().toLocaleTimeString()
+
+messages.push({
+user:currentUser,
+text:text,
+time:time
+})
+
+document.getElementById("messageInput").value=""
+
+renderMessages()
+
+}
+
+function renderMessages(){
+
+let box=document.getElementById("chatBox")
+
+box.innerHTML=""
+
+messages.forEach(m=>{
+
+let div=document.createElement("div")
+div.className="message"
+
+div.innerHTML="<b>"+m.user+"</b> <span class='small'>"+m.time+"</span>: "+m.text
+
+box.appendChild(div)
+
+})
+
+box.scrollTop=box.scrollHeight
+
+}
+
+document.getElementById("messageInput")?.addEventListener("keypress",function(e){
+
+if(e.key==="Enter"){
+
+sendMessage()
+
+}
+
+})
+
+</script>
+
+</body>
+</html>
