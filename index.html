@@ -273,10 +273,6 @@
           <div id="signupBox">
             <h3>Sign up</h3>
             <input id="suUser" placeholder="Username" maxlength="24" />
-            <div class="pass-row">
-              <input id="suPass" type="password" placeholder="Password" />
-              <button id="suTogglePass" class="soft" type="button">Show</button>
-            </div>
             <button id="signupBtn" class="primary">Create account</button>
             <div id="suStatus" class="status"></div>
             <button id="gotoLogin" class="ghost">I already have an account</button>
@@ -285,10 +281,6 @@
           <div id="loginBox" class="hidden">
             <h3>Login</h3>
             <input id="liUser" placeholder="Username" maxlength="24" />
-            <div class="pass-row">
-              <input id="liPass" type="password" placeholder="Password" />
-              <button id="liTogglePass" class="soft" type="button">Show</button>
-            </div>
             <button id="loginBtn" class="primary">Login</button>
             <div id="liStatus" class="status"></div>
             <button id="gotoSignup" class="ghost">Create account</button>
@@ -317,7 +309,10 @@
 
           <div class="pane" id="paneFriends">
             <h4>Contacts</h4>
-            <div class="tiny" id="myFriendCode">Friend code: -</div>
+            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+              <div class="tiny" id="myFriendCode">Friend code: -</div>
+              <button id="copyFriendCodeBtn" class="soft" style="width:auto; margin:0;">Copy</button>
+            </div>
             <input id="friendSearch" placeholder="Enter friend code (example: JAYD-2F9Q)" maxlength="24" />
             <button id="sendReqBtn" class="soft">Send request</button>
             <div id="friendStatus" class="status"></div>
@@ -334,11 +329,13 @@
               <option value="invite">Invite-only</option>
               <option value="public">Public (code join)</option>
             </select>
-            <input id="roomPassword" placeholder="Room password (optional)" type="password" />
             <input id="roomMax" type="number" min="2" max="250" value="40" />
             <button id="createRoomBtn" class="success">Create room</button>
             <h4>Join by code</h4>
-            <input id="joinCode" placeholder="Room code" maxlength="12" />
+            <div style="display:flex; gap:6px;">
+              <input id="joinCode" placeholder="Room code" maxlength="12" />
+              <button id="copyJoinCodeBtn" class="soft" style="width:auto;">Copy</button>
+            </div>
             <button id="joinCodeBtn" class="primary">Join room</button>
             <div id="roomStatus" class="status"></div>
             <h4>My visible rooms</h4>
@@ -415,11 +412,11 @@
     const LEGACY_KEYS = [
       'chat_users','chat_session','chat_banned_users','chat_friends','chat_friend_requests','chat_room_modes','chat_saved_rooms'
     ];
-    if (!localStorage.getItem('fresh_reset_done_v3')) {
+    if (!localStorage.getItem('fresh_reset_done_v4')) {
       LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
       localStorage.removeItem('freshchat_session');
       localStorage.removeItem('freshchat_muted_rooms');
-      localStorage.setItem('fresh_reset_done_v3', '1');
+      localStorage.setItem('fresh_reset_done_v4', '1');
     }
 
     const state = {
@@ -437,6 +434,8 @@
       replyTo: null,
       typingUsers: new Set(),
       subscriptions: [],
+      globalSub: null,
+      memberRoomCodes: new Set(),
       adminMode: false,
       modalQueue: [],
       modalOpen: false,
@@ -450,16 +449,16 @@
       appView: document.getElementById('appView'),
       signupBox: document.getElementById('signupBox'),
       loginBox: document.getElementById('loginBox'),
-      suUser: document.getElementById('suUser'), suPass: document.getElementById('suPass'),
-      suStatus: document.getElementById('suStatus'), liUser: document.getElementById('liUser'), liPass: document.getElementById('liPass'),
+      suUser: document.getElementById('suUser'),
+      suStatus: document.getElementById('suStatus'), liUser: document.getElementById('liUser'),
       liStatus: document.getElementById('liStatus'),
       meAvatar: document.getElementById('meAvatar'), meAvatarText: document.getElementById('meAvatarText'), meName: document.getElementById('meName'), mePresence: document.getElementById('mePresence'), hostCrown: document.getElementById('hostCrown'),
       adminTick: document.getElementById('adminTick'), adminBadge: document.getElementById('adminBadge'),
-      myFriendCode: document.getElementById('myFriendCode'),
+      myFriendCode: document.getElementById('myFriendCode'), copyFriendCodeBtn: document.getElementById('copyFriendCodeBtn'),
       friendSearch: document.getElementById('friendSearch'), friendStatus: document.getElementById('friendStatus'), friendsList: document.getElementById('friendsList'),
       requestList: document.getElementById('requestList'), inviteList: document.getElementById('inviteList'),
-      roomName: document.getElementById('roomName'), roomDesc: document.getElementById('roomDesc'), roomVisibility: document.getElementById('roomVisibility'), roomPassword: document.getElementById('roomPassword'), roomMax: document.getElementById('roomMax'), roomStatus: document.getElementById('roomStatus'),
-      joinCode: document.getElementById('joinCode'), roomList: document.getElementById('roomList'),
+      roomName: document.getElementById('roomName'), roomDesc: document.getElementById('roomDesc'), roomVisibility: document.getElementById('roomVisibility'), roomMax: document.getElementById('roomMax'), roomStatus: document.getElementById('roomStatus'),
+      joinCode: document.getElementById('joinCode'), copyJoinCodeBtn: document.getElementById('copyJoinCodeBtn'), roomList: document.getElementById('roomList'),
       activeRoomName: document.getElementById('activeRoomName'), activeRoomMeta: document.getElementById('activeRoomMeta'),
       chat: document.getElementById('chat'), msgInput: document.getElementById('msgInput'), composeStatus: document.getElementById('composeStatus'), replyBar: document.getElementById('replyBar'),
       memberPill: document.getElementById('memberPill'), typingPill: document.getElementById('typingPill'), activityPill: document.getElementById('activityPill'),
@@ -487,7 +486,7 @@
       el.meAvatarText.textContent = state.me.username.slice(0,2).toUpperCase();
       el.mePresence.textContent = 'online';
       el.adminTick.classList.toggle('hidden', !state.adminMode);
-      el.adminBadge.classList.toggle('hidden', !state.adminMode);
+      el.adminBadge.classList.add('hidden');
       el.myFriendCode.textContent = `Friend code: ${state.me.friend_code || friendCodeFromUsername(state.me.username)}`;
     }
 
@@ -501,6 +500,12 @@
       const seed = [...username].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
       const tail = (seed * 733 + username.length * 97).toString(36).toUpperCase().slice(0, 4).padEnd(4, '0');
       return `${head}-${tail}`;
+    }
+
+    function normalizeCode(code) {
+      const clean = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (clean.length <= 4) return clean;
+      return `${clean.slice(0, 4)}-${clean.slice(4, 8)}`;
     }
 
     function saveMutedRooms() {
@@ -557,7 +562,7 @@
     }
 
     async function wipeCloudDataOnce() {
-      if (localStorage.getItem('fresh_cloud_reset_v1')) return;
+      if (localStorage.getItem('fresh_cloud_reset_v2')) return;
       const wipes = [
         ['messages', 'id', 0],
         ['members', 'id', 0],
@@ -574,7 +579,7 @@
         else query = query.neq(key, base);
         await query;
       }
-      localStorage.setItem('fresh_cloud_reset_v1', '1');
+      localStorage.setItem('fresh_cloud_reset_v2', '1');
     }
 
     function roomCode() {
@@ -653,7 +658,8 @@
         const { data } = await sb.from('rooms').select('*').in('room_code', codes).eq('is_active', true);
         joined = data || [];
       }
-      const allRooms = [...(own || []), ...joined.filter(r => r.host_username !== me)].sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+      const merged = [...(own || []), ...joined.filter(r => r.host_username !== me)];
+      const allRooms = [...new Map(merged.map((r) => [r.room_code, r])).values()].sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
       const allCodes = allRooms.map((r) => r.room_code);
       let visMap = {};
       if (allCodes.length) {
@@ -661,6 +667,7 @@
         visMap = Object.fromEntries((accessRows || []).map((a) => [a.room_code, a.visibility]));
       }
       state.roomList = allRooms.map((r) => ({ ...r, visibility: visMap[r.room_code] || 'private' }));
+      state.memberRoomCodes = new Set(codes);
       renderRoomList();
     }
 
@@ -723,7 +730,9 @@
           <div class="tiny">host: @${r.host_username} • ${new Date(r.created_at).toLocaleDateString()} ${r.visibility ? `• ${r.visibility}` : ''}</div>
           <div style="display:flex; gap:6px; margin-top:6px;">
             <button data-join-room="${r.room_code}" class="primary" style="width:auto;">Join</button>
+            <button data-copy-room="${r.room_code}" class="soft" style="width:auto;">Copy code</button>
             <button data-mute-room="${r.room_code}" class="soft" style="width:auto;">${state.mutedRooms.has(r.room_code) ? 'Unmute' : 'Mute'}</button>
+            <button data-clear-room="${r.room_code}" class="ghost" style="width:auto;">${r.host_username === state.me.username ? 'Delete room' : 'Hide'}</button>
           </div>
         </div>
       `).join('');
@@ -778,7 +787,7 @@
       await sb.from('messages').insert({ username: 'system', room, message: messagePayload(body), message_type: 'system' });
     }
 
-    async function canJoinRoom(roomRow, passInput = '') {
+    async function canJoinRoom(roomRow) {
       if (!roomRow || !roomRow.is_active) return { ok: false, reason: 'Room closed.' };
       const me = state.me.username;
       const [{ data: member }, { data: accessRows }, { data: invite }, { data: kick }] = await Promise.all([
@@ -791,11 +800,7 @@
       if (member?.data) return { ok: true };
       if (roomRow.host_username === me) return { ok: true };
 
-      const access = accessRows?.data?.[0] || { visibility: 'private', password_hash: null };
-      if (access.password_hash) {
-        const h = await sha256(passInput || '');
-        if (h !== access.password_hash) return { ok: false, reason: 'Wrong room password.' };
-      }
+      const access = accessRows?.[0] || { visibility: 'private', password_hash: null };
 
       if (access.visibility === 'invite') {
         if (!invite?.data) return { ok: false, reason: 'Invite required.' };
@@ -916,10 +921,10 @@
       return state.room.host_username === state.me.username;
     }
 
-    async function joinRoom(code, passwordInput = '') {
+    async function joinRoom(code) {
       const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
       if (!room) return setStatus(el.roomStatus, 'Room not found.', true);
-      const access = await canJoinRoom(room, passwordInput);
+      const access = await canJoinRoom(room);
       if (!access.ok) return setStatus(el.roomStatus, access.reason, true);
 
       const { data: hostEntry } = await sb.from('members').select('*').eq('room_code', code).eq('username', room.host_username).maybeSingle();
@@ -944,8 +949,6 @@
       if (!room_name) return setStatus(el.roomStatus, 'Room name required.', true);
       const room_code = roomCode();
       const me = state.me.username;
-      const passHash = el.roomPassword.value ? await sha256(el.roomPassword.value) : null;
-
       const { error } = await sb.from('rooms').insert({ room_code, room_name, host_username: me, is_active: true });
       if (error) return setStatus(el.roomStatus, error.message, true);
 
@@ -953,7 +956,6 @@
         room_code,
         visibility: el.roomVisibility.value,
         description: el.roomDesc.value.trim() || null,
-        password_hash: passHash,
         max_members: Math.max(2, Math.min(250, Number(el.roomMax.value) || 40)),
         is_locked: false,
         announcements_only: false
@@ -962,8 +964,8 @@
       await sb.from('members').upsert({ room_code, username: me, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
       await sendSystem(room_code, `Room created by @${me}.`);
       await refreshRooms();
-      await joinRoom(room_code, el.roomPassword.value);
-      el.roomName.value = ''; el.roomDesc.value = ''; el.roomPassword.value = '';
+      await joinRoom(room_code);
+      el.roomName.value = ''; el.roomDesc.value = '';
     }
 
     async function safeHostTransferOrClose() {
@@ -1016,6 +1018,22 @@
       await sb.from('rooms').update({ is_active: false }).eq('room_code', state.room.room_code);
       await sendSystem(state.room.room_code, 'Room closed by host.');
       await forceLeaveRoom(false);
+    }
+
+    async function hideRoomFromList(code) {
+      const room = state.roomList.find((r) => r.room_code === code);
+      if (!room) return;
+      if (room.host_username === state.me.username) {
+        if (!confirm(`Delete room ${code} for everyone?`)) return;
+        await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
+        await sendSystem(code, `Room deleted by @${state.me.username}.`);
+        if (state.room?.room_code === code) await forceLeaveRoom(false);
+      } else {
+        await sb.from('members').delete().eq('room_code', code).eq('username', state.me.username);
+        if (state.room?.room_code === code) await forceLeaveRoom(false);
+      }
+      await refreshRooms();
+      setStatus(el.roomStatus, room.host_username === state.me.username ? 'Room deleted.' : 'Room hidden.');
     }
 
     async function sendTextMessage() {
@@ -1124,6 +1142,7 @@
       if (!state.me) return;
       const { data: memberships } = await sb.from('members').select('room_code').eq('username', state.me.username);
       const codes = [...new Set((memberships || []).map((m) => m.room_code))];
+      state.memberRoomCodes = new Set(codes);
       await Promise.all(codes.map(async (code) => {
         const { data: row } = await sb.from('messages').select('id,username,created_at,message_type').eq('room', code).order('created_at', { ascending: false }).limit(1).maybeSingle();
         if (!row || row.username === state.me.username || row.message_type === 'system') return;
@@ -1138,18 +1157,46 @@
       }));
     }
 
+    function subscribeGlobalNotifications() {
+      if (!state.me) return;
+      if (state.globalSub) {
+        try { sb.removeChannel(state.globalSub); } catch {}
+      }
+      const me = state.me.username;
+      state.globalSub = sb.channel(`global:${me}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests', filter: `to_user=eq.${me}` }, async () => {
+          await refreshFriends();
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_invites', filter: `to_username=eq.${me}` }, async () => {
+          await refreshInvites();
+          await refreshRooms();
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+          const row = payload.new || {};
+          if (row.username === me || row.message_type === 'system') return;
+          if (!state.memberRoomCodes.has(row.room) || state.mutedRooms.has(row.room)) return;
+          if (state.room?.room_code === row.room) return;
+          const prev = state.seenMessageIds[row.room];
+          state.seenMessageIds[row.room] = row.id;
+          if (prev === row.id) return;
+          enqueueModal({
+            title: 'New room message',
+            body: `@${row.username} sent a new message in room <strong>${row.room}</strong>.`,
+            actions: [{ label: 'Open room', className: 'primary', onClick: async () => joinRoom(row.room) }]
+          });
+        })
+        .subscribe();
+    }
+
     async function signup() {
       const username = el.suUser.value.trim().toLowerCase();
-      const pass = el.suPass.value;
       if (!/^[a-z0-9_]{3,24}$/.test(username)) return setStatus(el.suStatus, 'Username: 3-24 chars [a-z0-9_].', true);
-      if (!pass) return setStatus(el.suStatus, 'Password required.', true);
 
       const { data: exists } = await sb.from('users').select('id').eq('username', username).maybeSingle();
       if (exists) return setStatus(el.suStatus, 'Username already taken.', true);
 
-      const hash = await sha256(pass);
       const friend_code = friendCodeFromUsername(username);
-      const { error } = await sb.from('users').upsert({ username, password_hash: hash, friend_code, created_at: new Date().toISOString(), last_seen: new Date().toISOString() }, { onConflict: 'username' });
+      const { error } = await sb.from('users').upsert({ username, friend_code, created_at: new Date().toISOString(), last_seen: new Date().toISOString() }, { onConflict: 'username' });
       if (error) return setStatus(el.suStatus, error.message, true);
       setStatus(el.suStatus, 'Account created. Log in now.');
       showAuth(true);
@@ -1157,13 +1204,10 @@
 
     async function login() {
       const username = el.liUser.value.trim().toLowerCase();
-      const pass = el.liPass.value;
-      const isAdminLogin = username === 'p' && pass === 'p';
-      const hash = await sha256(pass);
+      const isAdminLogin = username === 'p';
       if (isAdminLogin) {
         await sb.from('users').upsert({
           username: 'p',
-          password_hash: hash,
           friend_code: friendCodeFromUsername('p'),
           created_at: new Date().toISOString(),
           last_seen: new Date().toISOString(),
@@ -1171,7 +1215,7 @@
         }, { onConflict: 'username' });
       }
       const { data: user } = await sb.from('users').select('*').eq('username', username).maybeSingle();
-      if (!user || user.password_hash !== hash) return setStatus(el.liStatus, 'Invalid login.', true);
+      if (!user) return setStatus(el.liStatus, 'Account not found. Sign up first.', true);
 
       state.me = { username, friend_code: user.friend_code || friendCodeFromUsername(username) };
       state.adminMode = isAdminLogin;
@@ -1186,6 +1230,10 @@
     async function logout() {
       if (state.room) await forceLeaveRoom();
       if (state.me) await sb.from('users').update({ is_online: false, last_seen: new Date().toISOString() }).eq('username', state.me.username);
+      if (state.globalSub) {
+        try { sb.removeChannel(state.globalSub); } catch {}
+        state.globalSub = null;
+      }
       state.me = null;
       state.adminMode = false;
       showAuth(true);
@@ -1193,6 +1241,7 @@
 
     async function bootstrapAfterAuth() {
       await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
+      subscribeGlobalNotifications();
       const refreshTicker = setInterval(async () => {
         if (!state.me) return clearInterval(refreshTicker);
         await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
@@ -1206,22 +1255,17 @@
     qs('#loginBtn').onclick = login;
     qs('#logoutBtn').onclick = logout;
     el.modalDismiss.onclick = closeModal;
-    el.myFriendCode.onclick = async () => {
+    el.copyFriendCodeBtn.onclick = async () => {
       const code = state.me?.friend_code;
       if (!code) return;
       await navigator.clipboard.writeText(code);
-      setStatus(el.friendStatus, 'Friend code copied.');
+      setStatus(el.friendStatus, 'Friend code copied!');
     };
-
-    qs('#suTogglePass').onclick = () => {
-      const show = el.suPass.type === 'password';
-      el.suPass.type = show ? 'text' : 'password';
-      qs('#suTogglePass').textContent = show ? 'Hide' : 'Show';
-    };
-    qs('#liTogglePass').onclick = () => {
-      const show = el.liPass.type === 'password';
-      el.liPass.type = show ? 'text' : 'password';
-      qs('#liTogglePass').textContent = show ? 'Hide' : 'Show';
+    el.copyJoinCodeBtn.onclick = async () => {
+      const code = normalizeCode(el.joinCode.value);
+      if (!code) return setStatus(el.roomStatus, 'Enter room code first.', true);
+      await navigator.clipboard.writeText(code);
+      setStatus(el.roomStatus, `Room code ${code} copied!`);
     };
 
     qsa('.tab').forEach((b) => b.onclick = () => {
@@ -1233,12 +1277,22 @@
     });
 
     qs('#sendReqBtn').onclick = async () => {
-      const code = el.friendSearch.value.trim().toUpperCase();
+      const code = normalizeCode(el.friendSearch.value);
       if (!code) return setStatus(el.friendStatus, 'Enter a friend code.', true);
       const { data: user } = await sb.from('users').select('username,friend_code').eq('friend_code', code).maybeSingle();
       if (!user) return setStatus(el.friendStatus, 'User not found.', true);
       const to = user.username;
       if (to === state.me.username) return setStatus(el.friendStatus, 'That is your code.', true);
+      const [a,b] = [state.me.username, to].sort();
+      const { data: alreadyFriends } = await sb.from('friends').select('id').eq('user_a', a).eq('user_b', b).maybeSingle();
+      if (alreadyFriends) return setStatus(el.friendStatus, `@${to} is already your friend.`);
+      const { data: reverseReq } = await sb.from('friend_requests').select('*').eq('from_user', to).eq('to_user', state.me.username).eq('status', 'pending').maybeSingle();
+      if (reverseReq) {
+        await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', reverseReq.id);
+        await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
+        await refreshFriends();
+        return setStatus(el.friendStatus, `Friend added: @${to}.`);
+      }
       const { data: already } = await sb.from('friend_requests').select('id').eq('from_user', state.me.username).eq('to_user', to).eq('status', 'pending').maybeSingle();
       if (already) return setStatus(el.friendStatus, 'Request already pending.', true);
       await sb.from('friend_requests').insert({ from_user: state.me.username, to_user: to, status: 'pending' });
@@ -1248,11 +1302,22 @@
 
     qs('#createRoomBtn').onclick = createRoom;
     qs('#joinCodeBtn').onclick = async () => {
-      const code = el.joinCode.value.trim().toUpperCase();
+      const code = normalizeCode(el.joinCode.value);
       if (!code) return;
-      const pass = prompt('Room password (if needed):') || '';
-      await joinRoom(code, pass);
+      await joinRoom(code);
     };
+    el.friendSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        qs('#sendReqBtn').click();
+      }
+    });
+    el.friendSearch.addEventListener('input', () => {
+      el.friendSearch.value = normalizeCode(el.friendSearch.value);
+    });
+    el.joinCode.addEventListener('input', () => {
+      el.joinCode.value = normalizeCode(el.joinCode.value);
+    });
 
     qs('#sendBtn').onclick = sendTextMessage;
     el.msgInput.addEventListener('keydown', async (e) => {
@@ -1357,15 +1422,23 @@
     el.roomList.addEventListener('click', async (e) => {
       const code = e.target.closest('[data-join-room]')?.dataset.joinRoom;
       const muteCode = e.target.closest('[data-mute-room]')?.dataset.muteRoom;
+      const copyCode = e.target.closest('[data-copy-room]')?.dataset.copyRoom;
+      const clearCode = e.target.closest('[data-clear-room]')?.dataset.clearRoom;
       if (code) {
-        const pass = prompt('Password if needed:') || '';
-        await joinRoom(code, pass);
+        await joinRoom(code);
       }
       if (muteCode) {
         if (state.mutedRooms.has(muteCode)) state.mutedRooms.delete(muteCode);
         else state.mutedRooms.add(muteCode);
         saveMutedRooms();
         renderRoomList();
+      }
+      if (copyCode) {
+        await navigator.clipboard.writeText(copyCode);
+        setStatus(el.roomStatus, `Room code ${copyCode} copied.`);
+      }
+      if (clearCode) {
+        await hideRoomFromList(clearCode);
       }
     });
 
