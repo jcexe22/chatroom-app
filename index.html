@@ -299,8 +299,9 @@
       <section id="appView" class="main hidden">
         <aside class="side">
           <div class="me">
-            <div class="avatar" id="meAvatar">?</div>
-            <div class="verified-dot hidden" id="adminTick" title="admin mode"></div>
+            <div class="avatar" id="meAvatar"><span id="meAvatarText">?</span>
+              <div class="verified-dot hidden" id="adminTick" title="admin mode"></div>
+            </div>
             <div>
               <div><strong id="meName">-</strong> <span id="adminBadge" class="admin-pill hidden">admin</span> <span id="hostCrown" class="hidden">👑</span></div>
               <div class="tiny" id="mePresence">offline</div>
@@ -452,7 +453,7 @@
       suUser: document.getElementById('suUser'), suPass: document.getElementById('suPass'),
       suStatus: document.getElementById('suStatus'), liUser: document.getElementById('liUser'), liPass: document.getElementById('liPass'),
       liStatus: document.getElementById('liStatus'),
-      meAvatar: document.getElementById('meAvatar'), meName: document.getElementById('meName'), mePresence: document.getElementById('mePresence'), hostCrown: document.getElementById('hostCrown'),
+      meAvatar: document.getElementById('meAvatar'), meAvatarText: document.getElementById('meAvatarText'), meName: document.getElementById('meName'), mePresence: document.getElementById('mePresence'), hostCrown: document.getElementById('hostCrown'),
       adminTick: document.getElementById('adminTick'), adminBadge: document.getElementById('adminBadge'),
       myFriendCode: document.getElementById('myFriendCode'),
       friendSearch: document.getElementById('friendSearch'), friendStatus: document.getElementById('friendStatus'), friendsList: document.getElementById('friendsList'),
@@ -483,7 +484,7 @@
       el.authView.classList.add('hidden');
       el.appView.classList.remove('hidden');
       el.meName.textContent = state.me.username;
-      el.meAvatar.textContent = state.me.username.slice(0,2).toUpperCase();
+      el.meAvatarText.textContent = state.me.username.slice(0,2).toUpperCase();
       el.mePresence.textContent = 'online';
       el.adminTick.classList.toggle('hidden', !state.adminMode);
       el.adminBadge.classList.toggle('hidden', !state.adminMode);
