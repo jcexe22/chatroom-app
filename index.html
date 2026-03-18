@@ -1,1506 +1,2495 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Private Friends Chat</title>
-  <style>
-    :root {
-      --bg: #140d30;
-      --panel: #20164c;
-      --panel-soft: #2a1f61;
-      --line: #4a3f87;
-      --txt: #f4f2ff;
-      --muted: #c6bdeb;
-      --brand: #44b4f6;
-      --brand-2: #22c55e;
-      --danger: #ef4444;
-      --bubble-self: linear-gradient(145deg, #14b8a6, #0ea5e9);
-      --bubble-other: #2b2261;
-      --bubble-system: #3a3180;
-      --ok: #22c55e;
-      --warn: #f59e0b;
-    }
-
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; font-family: Inter, Segoe UI, Arial, sans-serif; color: var(--txt); background: radial-gradient(circle at top left, #5d33d6, #120a2b 58%); }
-    .hidden { display: none !important; }
-
-    .app {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 14px;
-    }
-
-    .shell {
-      width: min(1200px, 100%);
-      min-height: 88vh;
-      border-radius: 22px;
-      border: 1px solid var(--line);
-      background: rgba(16, 27, 45, 0.92);
-      box-shadow: 0 20px 44px rgba(0, 0, 0, .45);
-      overflow: hidden;
-      backdrop-filter: blur(6px);
-    }
-
-    .auth-wrap {
-      min-height: 88vh;
-      display: grid;
-      place-items: center;
-      padding: 20px;
-      background: linear-gradient(150deg, rgba(99, 102, 241, .22), rgba(14, 165, 233, .14));
-    }
-
-    .auth-card {
-      width: min(430px, 100%);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: rgba(10, 18, 31, .92);
-      padding: 20px;
-    }
-
-    input, button, select, textarea {
-      width: 100%;
-      border-radius: 11px;
-      border: 1px solid var(--line);
-      background: #0c1525;
-      color: var(--txt);
-      padding: 10px 11px;
-      margin-top: 8px;
-      font-size: 14px;
-    }
-    textarea { min-height: 80px; resize: vertical; }
-    button { cursor: pointer; font-weight: 600; }
-    button.primary { background: var(--brand); border-color: #3a8bff; }
-    button.success { background: #0f8e3d; }
-    button.warn { background: #9a670f; }
-    button.danger { background: #b91c1c; }
-    button.soft { background: #192b45; }
-    button.ghost { background: transparent; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-
-    .tiny { font-size: 12px; color: var(--muted); }
-    .status { min-height: 18px; font-size: 12px; margin-top: 8px; color: var(--muted); }
-
-    .main {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      min-height: 88vh;
-    }
-
-    .side {
-      border-right: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(20, 35, 57, .98), rgba(12, 22, 38, .95));
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    .me {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px;
-      border-bottom: 1px solid var(--line);
-    }
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      font-weight: 700;
-      background: #204270;
-      position: relative;
-    }
-    .verified-dot {
-      position: absolute;
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      border: 2px solid #0f1f34;
-      background: #22c55e;
-      bottom: -1px;
-      left: -1px;
-    }
-    .admin-pill {
-      font-size: 10px;
-      color: #86efac;
-      border: 1px solid #1f6338;
-      border-radius: 999px;
-      padding: 1px 6px;
-      margin-left: 6px;
-    }
-    .pass-row { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
-    .pass-row input { margin:0; }
-    .pass-row button { width:auto; margin:0; }
-    .modal-wrap {
-      position: fixed;
-      inset: 0;
-      background: rgba(4, 10, 20, 0.56);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 30;
-      padding: 16px;
-    }
-    .modal {
-      width: min(460px, 100%);
-      background: #101b30;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px;
-      box-shadow: 0 12px 34px rgba(0,0,0,0.4);
-    }
-
-    .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
-    .tab.active { background: var(--brand); }
-
-    .pane {
-      padding: 10px;
-      overflow: auto;
-      min-height: 0;
-      flex: 1;
-    }
-
-    .row-item {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: #14243b;
-      padding: 9px;
-      margin-bottom: 8px;
-      animation: fadeIn .18s ease;
-    }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0);} }
-
-    .content {
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    .topbar {
-      padding: 12px;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(16, 27, 45, .9);
-    }
-
-    .chat {
-      flex: 1;
-      overflow: auto;
-      padding: 12px;
-      background: linear-gradient(180deg, rgba(6, 15, 27, .7), rgba(9, 18, 32, .92));
-      scroll-behavior: smooth;
-    }
-
-    .msg { max-width: 82%; margin-bottom: 11px; }
-    .msg.self { margin-left: auto; }
-    .meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
-    .bubble {
-      background: var(--bubble-other);
-      border: 1px solid #2b4060;
-      border-radius: 14px;
-      padding: 9px 10px;
-      line-height: 1.35;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .msg.self .bubble { background: var(--bubble-self); border-color: #3f79f0; }
-    .msg.system { margin-inline: auto; }
-    .msg.system .bubble { background: var(--bubble-system); border-style: dashed; font-size: 12px; }
-
-    .quoted { border-left: 3px solid #95bfff; padding-left: 7px; margin-bottom: 7px; color: #bad3f5; font-size: 12px; }
-    .actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
-    .actions button { width: auto; margin: 0; padding: 3px 8px; font-size: 11px; border-radius: 999px; }
-
-    .composer {
-      border-top: 1px solid var(--line);
-      padding: 10px;
-      background: rgba(13, 24, 40, .95);
-    }
-
-    .compose-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
-    .jump-btn {
-      position: fixed;
-      right: 26px;
-      bottom: 96px;
-      width: auto;
-      padding: 8px 10px;
-      z-index: 20;
-      border-radius: 999px;
-      background: #1f3c65;
-    }
-
-    .drop {
-      border: 1px dashed #35527a;
-      border-radius: 11px;
-      padding: 8px;
-      margin-top: 8px;
-      text-align: center;
-      color: var(--muted);
-    }
-    .drop.drag { border-color: #65a1ff; color: #c7dcff; }
-
-    .pill { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; font-size: 11px; }
-    .on { color: #86efac; }
-    .off { color: #94a3b8; }
-
-    img.media, video.media { max-width: 250px; border-radius: 10px; margin-top: 6px; border: 1px solid #35527a; }
-
-    @media (max-width: 900px) {
-      .main { grid-template-columns: 1fr; }
-      .side { max-height: 42vh; border-right: none; border-bottom: 1px solid var(--line); }
-      .jump-btn { right: 12px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <div class="shell">
-      <section id="authView" class="auth-wrap">
-        <div class="auth-card">
-          <h2 style="margin-top:0;">Private Friends Chat</h2>
-          <p class="tiny">WhatsApp-style private messaging with friend-based room access.</p>
-          <p class="tiny" style="margin-top:-4px;">Made by Jayden Clarke</p>
-
-          <div id="signupBox">
-            <h3>Sign up</h3>
-            <input id="suUser" placeholder="Username" maxlength="24" />
-            <div style="display:flex; gap:6px; align-items:center;">
-              <input id="suPass" type="password" placeholder="Password" maxlength="72" />
-              <button id="suTogglePass" class="soft" style="width:auto; margin:0;">Show</button>
-            </div>
-            <button id="signupBtn" class="primary">Create account</button>
-            <div id="suStatus" class="status"></div>
-            <button id="gotoLogin" class="ghost">I already have an account</button>
-          </div>
-
-          <div id="loginBox" class="hidden">
-            <h3>Login</h3>
-            <input id="liUser" placeholder="Username" maxlength="24" />
-            <div style="display:flex; gap:6px; align-items:center;">
-              <input id="liPass" type="password" placeholder="Password" maxlength="72" />
-              <button id="liTogglePass" class="soft" style="width:auto; margin:0;">Show</button>
-            </div>
-            <button id="loginBtn" class="primary">Login</button>
-            <div id="liStatus" class="status"></div>
-            <button id="gotoSignup" class="ghost">Create account</button>
-          </div>
-        </div>
-      </section>
-
-      <section id="appView" class="main hidden">
-        <aside class="side">
-          <div class="me">
-            <div class="avatar" id="meAvatar"><span id="meAvatarText">?</span>
-              <div class="verified-dot hidden" id="adminTick" title="admin mode"></div>
-            </div>
-            <div>
-              <div><strong id="meName">-</strong> <span id="adminBadge" class="admin-pill hidden">admin</span> <span id="hostCrown" class="hidden">👑</span></div>
-              <div class="tiny" id="mePresence">offline</div>
-            </div>
-            <button id="logoutBtn" class="soft" style="width:auto; margin-left:auto;">Logout</button>
-          </div>
-
-          <div class="tabs">
-            <button class="tab active" data-tab="friends">Friends</button>
-            <button class="tab" data-tab="rooms">Rooms</button>
-            <button class="tab" data-tab="requests">Requests</button>
-          </div>
-
-          <div class="pane" id="paneFriends">
-            <h4>Contacts</h4>
-            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
-              <div class="tiny" id="myFriendCode">Friend code: -</div>
-              <button id="copyFriendCodeBtn" class="soft" style="width:auto; margin:0;">Copy</button>
-            </div>
-            <input id="friendSearch" placeholder="Enter friend code (example: JAYD-2F9Q)" maxlength="24" />
-            <button id="sendReqBtn" class="soft">Send request</button>
-            <div id="friendStatus" class="status"></div>
-            <div id="friendsList"></div>
-          </div>
-
-          <div class="pane hidden" id="paneRooms">
-            <h4>Create room</h4>
-            <input id="roomName" placeholder="Room name" maxlength="48" />
-            <textarea id="roomDesc" placeholder="Description/topic (optional)"></textarea>
-            <select id="roomVisibility">
-              <option value="private">Private</option>
-              <option value="friends">Friends-only</option>
-              <option value="invite">Invite-only</option>
-              <option value="public">Public (code join)</option>
-            </select>
-            <input id="roomMax" type="number" min="2" max="250" value="40" />
-            <button id="createRoomBtn" class="success">Create room</button>
-            <h4>Join by code</h4>
-            <div style="display:flex; gap:6px;">
-              <input id="joinCode" placeholder="Room code" maxlength="12" />
-              <button id="copyJoinCodeBtn" class="soft" style="width:auto;">Copy</button>
-            </div>
-            <button id="joinCodeBtn" class="primary">Join room</button>
-            <div id="roomStatus" class="status"></div>
-            <h4>My visible rooms</h4>
-            <div id="roomList"></div>
-          </div>
-
-          <div class="pane hidden" id="paneRequests">
-            <h4>Friend requests</h4>
-            <div id="requestList"></div>
-            <h4>Room invites</h4>
-            <div id="inviteList"></div>
-          </div>
-        </aside>
-
-        <main class="content">
-          <div class="topbar">
-            <div>
-              <div><strong id="activeRoomName">No room joined</strong></div>
-              <div class="tiny" id="activeRoomMeta">Start with your friends, not public lobbies.</div>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <label class="pill"><input type="checkbox" id="autoScroll" checked style="width:auto; margin:0;"> auto-scroll</label>
-              <button id="leaveBtn" class="warn hidden" style="width:auto;">Leave</button>
-              <button id="closeBtn" class="danger hidden" style="width:auto;">Close room</button>
-            </div>
-          </div>
-
-          <div style="padding:8px 12px; border-bottom:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap;">
-            <input id="msgSearch" placeholder="Search messages..." style="max-width:260px; margin:0;" />
-            <div class="pill" id="typingPill">typing: none</div>
-            <div class="pill" id="memberPill">members: 0</div>
-            <div class="pill" id="activityPill">activity: idle</div>
-          </div>
-          <div id="memberListBar" style="padding:8px 12px; border-bottom:1px solid var(--line); max-height:94px; overflow:auto;"></div>
-
-          <div id="chat" class="chat"></div>
-          <button id="jumpLatest" class="jump-btn hidden">Jump to latest ⬇</button>
-
-          <div class="composer">
-            <div id="replyBar" class="tiny hidden"></div>
-            <div class="compose-grid">
-              <input id="msgInput" placeholder="Type message... Use @username" maxlength="4000" />
-              <button id="sendBtn" class="primary" style="width:auto;">Send</button>
-            </div>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-              <button class="soft emojiBtn" data-emoji="👍" style="width:auto;">👍</button>
-              <button class="soft emojiBtn" data-emoji="❤️" style="width:auto;">❤️</button>
-              <button class="soft emojiBtn" data-emoji="😂" style="width:auto;">😂</button>
-              <button id="gifBtn" class="soft" style="width:auto;">Send GIF URL</button>
-              <input id="mediaInput" type="file" style="max-width:260px;" />
-            </div>
-            <div id="dropZone" class="drop">Drag-drop image/video/file here</div>
-            <div id="composeStatus" class="status"></div>
-          </div>
-        </main>
-      </section>
-    </div>
-  </div>
-  <div id="modalWrap" class="modal-wrap hidden">
-    <div class="modal">
-      <h3 id="modalTitle" style="margin-top:0;">Notification</h3>
-      <div id="modalBody" class="tiny" style="line-height:1.4;"></div>
-      <div id="modalActions" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;"></div>
-      <button id="modalDismiss" class="ghost">Close</button>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const supabaseUrl = "https://lnfndmakffuqddfrwlqj.supabase.co";
-    const supabaseKey = "sb_publishable_PWEwP03MzgGMGCD2ii2lLg_2lljwtLK";
-    const sb = supabase.createClient(supabaseUrl, supabaseKey);
-
-    const LEGACY_KEYS = [
-      'chat_users','chat_session','chat_banned_users','chat_friends','chat_friend_requests','chat_room_modes','chat_saved_rooms'
-    ];
-    if (!localStorage.getItem('fresh_reset_done_v4')) {
-      LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
-      localStorage.removeItem('freshchat_session');
-      localStorage.removeItem('freshchat_muted_rooms');
-      localStorage.setItem('fresh_reset_done_v4', '1');
-    }
-
-    const state = {
-      me: null,
-      meUser: null,
-      room: null,
-      roomAccess: null,
-      members: [],
-      messages: [],
-      friends: [],
-      reqs: [],
-      invites: [],
-      roomList: [],
-      mutedRooms: new Set(JSON.parse(localStorage.getItem('freshchat_muted_rooms') || '[]')),
-      replyTo: null,
-      typingUsers: new Set(),
-      subscriptions: [],
-      globalSub: null,
-      memberRoomCodes: new Set(),
-      adminMode: false,
-      modalQueue: [],
-      modalOpen: false,
-      lastInviteIds: new Set(),
-      lastReqIds: new Set(),
-      seenMessageIds: {}
-    };
-
-    const el = {
-      authView: document.getElementById('authView'),
-      appView: document.getElementById('appView'),
-      signupBox: document.getElementById('signupBox'),
-      loginBox: document.getElementById('loginBox'),
-      suUser: document.getElementById('suUser'),
-      suPass: document.getElementById('suPass'), suTogglePass: document.getElementById('suTogglePass'),
-      suStatus: document.getElementById('suStatus'), liUser: document.getElementById('liUser'),
-      liPass: document.getElementById('liPass'), liTogglePass: document.getElementById('liTogglePass'),
-      liStatus: document.getElementById('liStatus'),
-      meAvatar: document.getElementById('meAvatar'), meAvatarText: document.getElementById('meAvatarText'), meName: document.getElementById('meName'), mePresence: document.getElementById('mePresence'), hostCrown: document.getElementById('hostCrown'),
-      adminTick: document.getElementById('adminTick'), adminBadge: document.getElementById('adminBadge'),
-      myFriendCode: document.getElementById('myFriendCode'), copyFriendCodeBtn: document.getElementById('copyFriendCodeBtn'),
-      friendSearch: document.getElementById('friendSearch'), friendStatus: document.getElementById('friendStatus'), friendsList: document.getElementById('friendsList'),
-      requestList: document.getElementById('requestList'), inviteList: document.getElementById('inviteList'),
-      roomName: document.getElementById('roomName'), roomDesc: document.getElementById('roomDesc'), roomVisibility: document.getElementById('roomVisibility'), roomMax: document.getElementById('roomMax'), roomStatus: document.getElementById('roomStatus'),
-      joinCode: document.getElementById('joinCode'), copyJoinCodeBtn: document.getElementById('copyJoinCodeBtn'), roomList: document.getElementById('roomList'),
-      activeRoomName: document.getElementById('activeRoomName'), activeRoomMeta: document.getElementById('activeRoomMeta'),
-      chat: document.getElementById('chat'), msgInput: document.getElementById('msgInput'), composeStatus: document.getElementById('composeStatus'), replyBar: document.getElementById('replyBar'),
-      memberPill: document.getElementById('memberPill'), typingPill: document.getElementById('typingPill'), activityPill: document.getElementById('activityPill'),
-      memberListBar: document.getElementById('memberListBar'),
-      leaveBtn: document.getElementById('leaveBtn'), closeBtn: document.getElementById('closeBtn'),
-      autoScroll: document.getElementById('autoScroll'), jumpLatest: document.getElementById('jumpLatest'), msgSearch: document.getElementById('msgSearch'), mediaInput: document.getElementById('mediaInput'), dropZone: document.getElementById('dropZone'),
-      modalWrap: document.getElementById('modalWrap'), modalTitle: document.getElementById('modalTitle'), modalBody: document.getElementById('modalBody'), modalActions: document.getElementById('modalActions'), modalDismiss: document.getElementById('modalDismiss')
-    };
-
-    const qs = (s) => document.querySelector(s);
-    const qsa = (s) => Array.from(document.querySelectorAll(s));
-    const setStatus = (node, msg, err = false) => { node.textContent = msg || ''; node.style.color = err ? '#fecaca' : '#9db0cc'; };
-
-    function showAuth(login = false) {
-      el.authView.classList.remove('hidden');
-      el.appView.classList.add('hidden');
-      el.signupBox.classList.toggle('hidden', login);
-      el.loginBox.classList.toggle('hidden', !login);
-    }
-
-    function showApp() {
-      el.authView.classList.add('hidden');
-      el.appView.classList.remove('hidden');
-      el.meName.textContent = state.me.username;
-      el.meAvatarText.textContent = state.me.username.slice(0,2).toUpperCase();
-      el.mePresence.textContent = 'online';
-      el.adminTick.classList.toggle('hidden', !state.adminMode);
-      el.adminBadge.classList.add('hidden');
-      el.myFriendCode.textContent = `Friend code: ${state.me.friend_code || friendCodeFromUsername(state.me.username)}`;
-    }
-
-    async function sha256(text) {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    function friendCodeFromUsername(username) {
-      const head = username.slice(0, 4).toUpperCase().padEnd(4, 'X');
-      const seed = [...username].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-      const tail = (seed * 733 + username.length * 97).toString(36).toUpperCase().slice(0, 4).padEnd(4, '0');
-      return `${head}-${tail}`;
-    }
-
-    function normalizeFriendCode(code) {
-      const clean = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (clean.length <= 4) return clean;
-      return `${clean.slice(0, 4)}-${clean.slice(4, 8)}`;
-    }
-    function normalizeRoomCode(code) {
-      return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
-    }
-
-    function saveMutedRooms() {
-      localStorage.setItem('freshchat_muted_rooms', JSON.stringify([...state.mutedRooms]));
-    }
-
-    function beep() {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 740;
-        gain.gain.setValueAtTime(0.001, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.19);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-      } catch {}
-    }
-
-    function enqueueModal(modal) {
-      state.modalQueue.push(modal);
-      processModalQueue();
-    }
-
-    function processModalQueue() {
-      if (state.modalOpen || !state.modalQueue.length) return;
-      state.modalOpen = true;
-      const modal = state.modalQueue.shift();
-      el.modalTitle.textContent = modal.title || 'Notification';
-      el.modalBody.innerHTML = modal.body || '';
-      el.modalActions.innerHTML = '';
-      (modal.actions || []).forEach((action) => {
-        const b = document.createElement('button');
-        b.className = action.className || 'soft';
-        b.textContent = action.label;
-        b.onclick = async () => {
-          await action.onClick?.();
-          closeModal();
-        };
-        el.modalActions.appendChild(b);
-      });
-      el.modalWrap.classList.remove('hidden');
-      beep();
-    }
-
-    function closeModal() {
-      el.modalWrap.classList.add('hidden');
-      state.modalOpen = false;
-      processModalQueue();
-    }
-
-    async function wipeCloudDataOnce() {
-      if (localStorage.getItem('fresh_cloud_reset_v2')) return;
-      const wipes = [
-        ['messages', 'id', 0],
-        ['members', 'id', 0],
-        ['room_invites', 'id', 0],
-        ['friend_requests', 'id', 0],
-        ['friends', 'id', 0],
-        ['room_access', 'room_code', ''],
-        ['rooms', 'room_code', ''],
-        ['users', 'username', '']
-      ];
-      for (const [table, key, base] of wipes) {
-        let query = sb.from(table).delete();
-        if (typeof base === 'number') query = query.gte(key, base);
-        else query = query.neq(key, base);
-        await query;
-      }
-      localStorage.setItem('fresh_cloud_reset_v2', '1');
-    }
-
-    function roomCode() {
-      const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      return [...Array(8)].map(() => a[Math.floor(Math.random()*a.length)]).join('');
-    }
-
-    function messagePayload(body, extra = {}) {
-      return JSON.stringify({ body, edited_at: null, deleted: false, reactions: {}, reply_to: null, ...extra });
-    }
-
-    function parseMessage(raw) {
-      try { const p = JSON.parse(raw.message); return { ...raw, payload: p }; }
-      catch { return { ...raw, payload: { body: raw.message, deleted: false, reactions: {}, reply_to: null } }; }
-    }
-
-    function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
-
-    async function refreshFriends() {
-      const me = state.me.username;
-      const { data: links } = await sb.from('friends').select('*').or(`user_a.eq.${me},user_b.eq.${me}`);
-      const names = (links || []).map((r) => r.user_a === me ? r.user_b : r.user_a);
-      state.friends = names;
-      renderFriends();
-
-      let reqQuery = await sb.from('friend_requests').select('*').eq('to_user', me).eq('status', 'pending').order('created_at', { ascending: false });
-      if (reqQuery.error) reqQuery = await sb.from('friend_requests').select('*').eq('to_user', me).eq('status', 'pending');
-      state.reqs = reqQuery.data || [];
-      for (const req of state.reqs) {
-        if (!state.lastReqIds.has(req.id)) {
-          enqueueModal({
-            title: 'Friend request',
-            body: `<strong>@${req.from_user}</strong> sent you a friend request.`,
-            actions: [
-              { label: 'Accept', className: 'success', onClick: async () => acceptFriendRequest(req.id) },
-              { label: 'Decline', className: 'danger', onClick: async () => rejectFriendRequest(req.id) }
-            ]
-          });
-        }
-      }
-      state.lastReqIds = new Set(state.reqs.map((r) => r.id));
-      renderRequests();
-    }
-
-    async function refreshInvites() {
-      if (!state.me) return;
-      let inviteQuery = await sb.from('room_invites').select('*').eq('to_username', state.me.username).eq('status', 'pending').order('created_at', { ascending: false });
-      if (inviteQuery.error) inviteQuery = await sb.from('room_invites').select('*').eq('to_username', state.me.username).eq('status', 'pending');
-      state.invites = inviteQuery.data || [];
-      for (const inv of state.invites) {
-        if (!state.lastInviteIds.has(inv.id)) {
-          enqueueModal({
-            title: 'Room invite',
-            body: `You were invited to <strong>${inv.room_code}</strong> by @${inv.from_username}.`,
-            actions: [
-              { label: 'Accept', className: 'success', onClick: async () => acceptInviteById(inv.id) },
-              { label: 'Decline', className: 'danger', onClick: async () => rejectInviteById(inv.id) }
-            ]
-          });
-        }
-      }
-      state.lastInviteIds = new Set(state.invites.map((r) => r.id));
-      renderInvites();
-    }
-
-    async function refreshRooms() {
-      if (!state.me) return;
-      const me = state.me.username;
-      const [{ data: own }, { data: memberRows }, { data: inviteRows }] = await Promise.all([
-        sb.from('rooms').select('*').eq('is_active', true).eq('host_username', me).order('created_at', { ascending: false }),
-        sb.from('members').select('room_code').eq('username', me),
-        sb.from('room_invites').select('room_code').eq('to_username', me).in('status', ['pending', 'accepted'])
-      ]);
-
-      const codes = [...new Set([...(memberRows || []).map(r => r.room_code), ...(inviteRows || []).map(r => r.room_code)])];
-      let joined = [];
-      if (codes.length) {
-        const { data } = await sb.from('rooms').select('*').in('room_code', codes).eq('is_active', true);
-        joined = data || [];
-      }
-      const merged = [...(own || []), ...joined.filter(r => r.host_username !== me)];
-      const allRooms = [...new Map(merged.map((r) => [r.room_code, r])).values()].sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
-      const allCodes = allRooms.map((r) => r.room_code);
-      let visMap = {};
-      if (allCodes.length) {
-        const { data: accessRows } = await sb.from('room_access').select('room_code,visibility').in('room_code', allCodes);
-        visMap = Object.fromEntries((accessRows || []).map((a) => [a.room_code, a.visibility]));
-      }
-      state.roomList = allRooms.map((r) => ({ ...r, visibility: visMap[r.room_code] || 'private' }));
-      state.memberRoomCodes = new Set(codes);
-      renderRoomList();
-    }
-
-    function renderFriends() {
-      if (!state.friends.length) {
-        el.friendsList.innerHTML = '<div class="tiny">No accepted friends yet.</div>';
-        return;
-      }
-      el.friendsList.innerHTML = state.friends.map((u) => `
-        <div class="row-item">
-          <strong>@${u}</strong>
-          <div style="display:flex; gap:6px; margin-top:6px;">
-            <button data-dm="${u}" class="soft" style="width:auto;">Message</button>
-            ${state.room ? `<button data-invite-user="${u}" class="soft" style="width:auto;">Invite</button>` : ''}
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function renderRequests() {
-      if (!state.reqs.length) {
-        el.requestList.innerHTML = '<div class="tiny">No incoming requests.</div>';
-        return;
-      }
-      el.requestList.innerHTML = state.reqs.map((r) => `
-        <div class="row-item">
-          <div><strong>@${r.from_user}</strong> sent a request</div>
-          <div style="display:flex; gap:6px; margin-top:6px;">
-            <button data-accept="${r.id}" class="success" style="width:auto;">Accept</button>
-            <button data-reject="${r.id}" class="danger" style="width:auto;">Reject</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function renderInvites() {
-      if (!state.invites.length) {
-        el.inviteList.innerHTML = '<div class="tiny">No room invites.</div>';
-        return;
-      }
-      el.inviteList.innerHTML = state.invites.map((i) => `
-        <div class="row-item">
-          <div>Room <strong>${i.room_code}</strong> invite from @${i.from_username}</div>
-          <div style="display:flex; gap:6px; margin-top:6px;">
-            <button data-invite-accept="${i.id}" class="success" style="width:auto;">Accept</button>
-            <button data-invite-reject="${i.id}" class="danger" style="width:auto;">Reject</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function renderRoomList() {
-      if (!state.roomList.length) {
-        el.roomList.innerHTML = '<div class="tiny">No rooms available by your privacy scope.</div>';
-        return;
-      }
-      el.roomList.innerHTML = state.roomList.map((r) => `
-        <div class="row-item">
-          <div><strong>${r.room_name}</strong> <span class="tiny">(${r.room_code})</span></div>
-          <div class="tiny">host: @${r.host_username} • ${new Date(r.created_at).toLocaleDateString()} ${r.visibility ? `• ${r.visibility}` : ''}</div>
-          <div style="display:flex; gap:6px; margin-top:6px;">
-            <button data-join-room="${r.room_code}" class="primary" style="width:auto;">Join</button>
-            <button data-copy-room="${r.room_code}" class="soft" style="width:auto;">Copy code</button>
-            <button data-mute-room="${r.room_code}" class="soft" style="width:auto;">${state.mutedRooms.has(r.room_code) ? 'Unmute' : 'Mute'}</button>
-            <button data-clear-room="${r.room_code}" class="ghost" style="width:auto;">${r.host_username === state.me.username ? 'Delete room' : 'Hide'}</button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function decorateMentions(text) {
-      return text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#93c5fd;">@$1</span>');
-    }
-
-    function renderChat() {
-      const query = el.msgSearch.value.trim().toLowerCase();
-      const rows = state.messages.filter((m) => !query || JSON.stringify(m.payload).toLowerCase().includes(query));
-      el.chat.innerHTML = rows.map((m) => {
-        const self = m.username === state.me.username;
-        const sys = m.message_type === 'system';
-        const deleted = !!m.payload.deleted;
-        const body = deleted ? '<i>Message deleted</i>' : decorateMentions((m.payload.body || '').replace(/</g,'&lt;'));
-        const reply = m.payload.reply_to ? `<div class="quoted">Replying to @${m.payload.reply_to.username}: ${(m.payload.reply_to.body || '').slice(0,80)}</div>` : '';
-        const media = renderMediaInner(m.payload.media);
-        const reacts = Object.entries(m.payload.reactions || {}).map(([emo, users]) => `<span class="pill">${emo} ${users.length}</span>`).join('');
-        const actions = sys || deleted ? '' : `
-          <div class="actions">
-            <button data-reply="${m.id}">Reply</button>
-            <button data-react="${m.id}:👍">👍</button>
-            <button data-react="${m.id}:❤️">❤️</button>
-            <button data-react="${m.id}:😂">😂</button>
-            <button data-copy="${m.id}">Copy</button>
-            ${(self || isHost()) ? `<button data-delete="${m.id}">Delete</button>` : ''}
-            ${self ? `<button data-edit="${m.id}">Edit</button>` : ''}
-          </div>
-        `;
-        return `
-          <div class="msg ${self ? 'self' : ''} ${sys ? 'system' : ''}" id="m-${m.id}">
-            <div class="meta">${sys ? 'system' : '@' + m.username} • ${fmtTime(m.created_at)} ${m.payload.edited_at ? '• edited' : ''}</div>
-            <div class="bubble">${reply}${body}${media ? `<div>${media}</div>` : ''}</div>
-            <div>${reacts}</div>
-            ${actions}
-          </div>
-        `;
-      }).join('');
-      if (el.autoScroll.checked) el.chat.scrollTop = el.chat.scrollHeight;
-    }
-
-    function renderMediaInner(media) {
-      if (!media?.data) return '';
-      if (media.kind === 'image') return `<img class="media" src="${media.data}" alt="${media.name || 'image'}" />`;
-      if (media.kind === 'video') return `<video class="media" controls src="${media.data}"></video>`;
-      return `<a href="${media.data}" download="${media.name || 'file'}" style="color:#93c5fd;">📎 ${media.name || 'file'}</a>`;
-    }
-
-    async function sendSystem(room, body) {
-      await sb.from('messages').insert({ username: 'system', room, message: messagePayload(body), message_type: 'system' });
-    }
-
-    async function canJoinRoom(roomRow) {
-      if (!roomRow || !roomRow.is_active) return { ok: false, reason: 'Room closed.' };
-      const me = state.me.username;
-      const [{ data: member }, { data: accessRows }, { data: invite }, { data: kick }] = await Promise.all([
-        sb.from('members').select('id').eq('room_code', roomRow.room_code).eq('username', me).maybeSingle(),
-        sb.from('room_access').select('*').eq('room_code', roomRow.room_code),
-        sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).in('status', ['pending','accepted']).maybeSingle(),
-        sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).eq('status', 'kicked').maybeSingle()
-      ]);
-      if (kick?.data) return { ok: false, reason: 'You were kicked from this room.' };
-      if (member?.data) return { ok: true };
-      if (roomRow.host_username === me) return { ok: true };
-
-      const access = accessRows?.[0] || { visibility: 'private', password_hash: null };
-
-      if (access.visibility === 'invite') {
-        if (!invite?.data) return { ok: false, reason: 'Invite required.' };
-        return { ok: true };
-      }
-      if (access.visibility === 'public') {
-        return { ok: true };
-      }
-
-      if (access.visibility === 'friends') {
-        const [{ data: hostMember }, { data: frA }, { data: frB }] = await Promise.all([
-          sb.from('members').select('is_online').eq('room_code', roomRow.room_code).eq('username', roomRow.host_username).maybeSingle(),
-          sb.from('friends').select('id').eq('user_a', me).eq('user_b', roomRow.host_username).maybeSingle(),
-          sb.from('friends').select('id').eq('user_a', roomRow.host_username).eq('user_b', me).maybeSingle()
-        ]);
-        const isFriend = !!(frA?.data || frB?.data);
-        if (invite?.data) return { ok: true };
-        if (!(isFriend && hostMember?.data?.is_online)) return { ok: false, reason: 'Host must be online and you must be friends.' };
-        return { ok: true };
-      }
-
-      if (access.visibility === 'private' && !invite?.data) {
-        return { ok: false, reason: 'Private room. Invite required.' };
-      }
-      return { ok: true };
-    }
-
-    async function subscribeRoom(roomCode) {
-      unsubscribeAll();
-
-      const msgSub = sb
-        .channel(`msgs:${roomCode}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room=eq.${roomCode}` }, async () => loadMessages(roomCode))
-        .subscribe();
-
-      const memSub = sb
-        .channel(`members:${roomCode}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'members', filter: `room_code=eq.${roomCode}` }, async () => loadMembers(roomCode))
-        .subscribe();
-
-      const roomSub = sb
-        .channel(`room:${roomCode}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `room_code=eq.${roomCode}` }, async (payload) => {
-          if (payload.new.is_active === false) {
-            await sendSystem(roomCode, 'Room closed by host.');
-            alert('Room was closed.');
-            await forceLeaveRoom(false);
-            return;
-          }
-          await loadRoom(roomCode);
-        })
-        .subscribe();
-
-      const typingSub = sb.channel(`typing:${roomCode}`)
-        .on('broadcast', { event: 'typing' }, ({ payload }) => {
-          if (payload.user !== state.me.username) {
-            if (payload.typing) state.typingUsers.add(payload.user);
-            else state.typingUsers.delete(payload.user);
-            el.typingPill.textContent = `typing: ${[...state.typingUsers].join(', ') || 'none'}`;
-          }
-        })
-        .subscribe();
-
-      state.subscriptions = [msgSub, memSub, roomSub, typingSub];
-    }
-
-    function unsubscribeAll() {
-      state.subscriptions.forEach((s) => { try { sb.removeChannel(s); } catch {} });
-      state.subscriptions = [];
-      state.typingUsers.clear();
-    }
-
-    async function loadRoom(code) {
-      const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
-      if (!room) return;
-      state.room = room;
-      const { data: accessRows } = await sb.from('room_access').select('*').eq('room_code', code);
-      state.roomAccess = accessRows?.[0] || { visibility: 'private' };
-      el.activeRoomName.textContent = room.room_name;
-      el.activeRoomMeta.textContent = `${code} • ${state.roomAccess.visibility} • host @${room.host_username}`;
-      el.leaveBtn.classList.remove('hidden');
-      el.closeBtn.classList.toggle('hidden', !isHost());
-      el.hostCrown.classList.toggle('hidden', !isHost());
-    }
-
-    async function loadMembers(code) {
-      const { data } = await sb.from('members').select('*').eq('room_code', code).order('joined_at', { ascending: true });
-      state.members = data || [];
-      const online = state.members.filter(m => m.is_online).length;
-      el.memberPill.textContent = `members: ${state.members.length} (${online} online)`;
-      el.memberListBar.innerHTML = state.members.map((m) => `
-        <span class="pill ${m.is_online ? 'on' : 'off'}" style="margin-right:6px; margin-bottom:4px; display:inline-flex;">
-          ${m.is_host ? '👑' : '👤'} @${m.username}
-          ${(isHost() && m.username !== state.me.username) ? `<button data-kick="${m.username}" style="width:auto; margin:0 0 0 5px; padding:2px 6px;">Kick</button>` : ''}
-        </span>
-      `).join('') || '<span class="tiny">No members yet.</span>';
-      if (state.room) {
-        const host = state.members.find(m => m.is_host);
-        if (host && host.username !== state.room.host_username) {
-          await sb.from('rooms').update({ host_username: host.username }).eq('room_code', code);
-          state.room.host_username = host.username;
-          el.closeBtn.classList.toggle('hidden', !isHost());
-          el.hostCrown.classList.toggle('hidden', !isHost());
-        }
-      }
-    }
-
-    async function loadMessages(code) {
-      const { data } = await sb.from('messages').select('*').eq('room', code).order('created_at', { ascending: true }).limit(500);
-      state.messages = (data || []).map(parseMessage);
-      renderChat();
-      const latest = state.messages.at(-1);
-      if (latest) el.activityPill.textContent = `activity: ${new Date(latest.created_at).toLocaleString()}`;
-    }
-
-    function isHost() {
-      if (!state.room || !state.me) return false;
-      return state.room.host_username === state.me.username;
-    }
-
-    async function joinRoom(code) {
-      const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
-      if (!room) return setStatus(el.roomStatus, 'Room not found.', true);
-      const access = await canJoinRoom(room);
-      if (!access.ok) return setStatus(el.roomStatus, access.reason, true);
-
-      const { data: hostEntry } = await sb.from('members').select('*').eq('room_code', code).eq('username', room.host_username).maybeSingle();
-      if (!hostEntry) {
-        await sb.from('members').upsert({ room_code: code, username: room.host_username, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
-      }
-
-      await sb.from('members').upsert({ room_code: code, username: state.me.username, is_host: false, is_online: true }, { onConflict: 'room_code,username' });
-      await sb.from('room_invites').update({ status: 'accepted' }).eq('room_code', code).eq('to_username', state.me.username).eq('status', 'pending');
-      await sendSystem(code, `@${state.me.username} joined the room.`);
-
-      await loadRoom(code);
-      await loadMembers(code);
-      await loadMessages(code);
-      await subscribeRoom(code);
-      await refreshRooms();
-      setStatus(el.roomStatus, 'Joined room.');
-    }
-
-    async function createRoom() {
-      const room_name = el.roomName.value.trim();
-      if (!room_name) return setStatus(el.roomStatus, 'Room name required.', true);
-      const room_code = roomCode();
-      const me = state.me.username;
-      const { error } = await sb.from('rooms').insert({ room_code, room_name, host_username: me, is_active: true });
-      if (error) return setStatus(el.roomStatus, error.message, true);
-
-      await sb.from('room_access').upsert({
-        room_code,
-        visibility: el.roomVisibility.value,
-        description: el.roomDesc.value.trim() || null,
-        max_members: Math.max(2, Math.min(250, Number(el.roomMax.value) || 40)),
-        is_locked: false,
-        announcements_only: false
-      }, { onConflict: 'room_code' });
-
-      await sb.from('members').upsert({ room_code, username: me, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
-      await sendSystem(room_code, `Room created by @${me}.`);
-      await refreshRooms();
-      await joinRoom(room_code);
-      el.roomName.value = ''; el.roomDesc.value = '';
-    }
-
-    async function safeHostTransferOrClose() {
-      if (!state.room) return;
-      const code = state.room.room_code;
-      const me = state.me.username;
-      const { data: remain } = await sb.from('members').select('*').eq('room_code', code).neq('username', me).order('joined_at', { ascending: true });
-      const candidates = (remain || []).filter((m) => m.is_online);
-      if (!candidates.length) {
-        await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
-        await sendSystem(code, 'Room closed because host left and no online members remained.');
-        return 'closed';
-      }
-      const next = candidates[0];
-      await sb.from('members').update({ is_host: false }).eq('room_code', code).eq('username', me);
-      await sb.from('members').update({ is_host: true }).eq('room_code', code).eq('username', next.username);
-      await sb.from('rooms').update({ host_username: next.username }).eq('room_code', code);
-      await sendSystem(code, `Host transferred to @${next.username}.`);
-      return 'transferred';
-    }
-
-    async function forceLeaveRoom(markOffline = true) {
-      if (!state.room) return;
-      const code = state.room.room_code;
-      const me = state.me.username;
-
-      if (isHost()) await safeHostTransferOrClose();
-      if (markOffline) {
-        await sb.from('members').delete().eq('room_code', code).eq('username', me);
-        await sendSystem(code, `@${me} left the room.`);
-      }
-
-      unsubscribeAll();
-      state.room = null; state.roomAccess = null; state.members = []; state.messages = [];
-      el.activeRoomName.textContent = 'No room joined';
-      el.activeRoomMeta.textContent = 'Start with your friends, not public lobbies.';
-      el.leaveBtn.classList.add('hidden');
-      el.closeBtn.classList.add('hidden');
-      el.hostCrown.classList.add('hidden');
-      el.memberPill.textContent = 'members: 0';
-      el.typingPill.textContent = 'typing: none';
-      el.chat.innerHTML = '';
-      await refreshRooms();
-      renderFriends();
-    }
-
-    async function closeRoom() {
-      if (!state.room || !isHost()) return;
-      if (!confirm('Close room for everyone?')) return;
-      await sb.from('rooms').update({ is_active: false }).eq('room_code', state.room.room_code);
-      await sendSystem(state.room.room_code, 'Room closed by host.');
-      await forceLeaveRoom(false);
-    }
-
-    async function hideRoomFromList(code) {
-      const room = state.roomList.find((r) => r.room_code === code);
-      if (!room) return;
-      if (room.host_username === state.me.username) {
-        if (!confirm(`Delete room ${code} for everyone?`)) return;
-        await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
-        await sendSystem(code, `Room deleted by @${state.me.username}.`);
-        if (state.room?.room_code === code) await forceLeaveRoom(false);
-      } else {
-        await sb.from('members').delete().eq('room_code', code).eq('username', state.me.username);
-        if (state.room?.room_code === code) await forceLeaveRoom(false);
-      }
-      await refreshRooms();
-      setStatus(el.roomStatus, room.host_username === state.me.username ? 'Room deleted.' : 'Room hidden.');
-    }
-
-    async function sendTextMessage() {
-      if (!state.room) return setStatus(el.composeStatus, 'Join a room first.', true);
-      const txt = el.msgInput.value.trim();
-      if (!txt) return;
-
-      const payload = { body: txt, reply_to: state.replyTo ? { id: state.replyTo.id, username: state.replyTo.username, body: state.replyTo.payload.body } : null, delivery: 'sent' };
-      const { error } = await sb.from('messages').insert({ username: state.me.username, room: state.room.room_code, message: messagePayload(txt, payload), message_type: 'text' });
-      if (error) {
-        setStatus(el.composeStatus, 'Send failed, retrying...', true);
-        setTimeout(sendTextMessage, 1200);
-        return;
-      }
-
-      el.msgInput.value = '';
-      clearReply();
-      setStatus(el.composeStatus, 'Sent');
-    }
-
-    function clearReply() {
-      state.replyTo = null;
-      el.replyBar.classList.add('hidden');
-      el.replyBar.textContent = '';
-    }
-
-    async function sendMedia(file) {
-      if (!state.room || !file) return;
-      if (file.size > 6 * 1024 * 1024) return setStatus(el.composeStatus, 'Max file size is 6MB for lightweight mode.', true);
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
-        const media = { kind, name: file.name, type: file.type || 'application/octet-stream', data: reader.result };
-        const body = kind === 'image' ? '📷 Photo' : kind === 'video' ? '🎬 Video' : '📎 File';
-        const { error } = await sb.from('messages').insert({
-          username: state.me.username,
-          room: state.room.room_code,
-          message: messagePayload(body, { body, media, delivery: 'sent' }),
-          message_type: kind
-        });
-        if (error) return setStatus(el.composeStatus, error.message, true);
-        setStatus(el.composeStatus, 'Media sent.');
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function updateMessage(id, updater) {
-      const msg = state.messages.find((m) => m.id === id);
-      if (!msg) return;
-      const payload = structuredClone(msg.payload);
-      updater(payload);
-      await sb.from('messages').update({ message: JSON.stringify(payload) }).eq('id', id);
-    }
-
-    async function kickUser(username) {
-      if (!isHost() || !state.room || username === state.me.username) return;
-      if (!confirm(`Kick @${username}?`)) return;
-      const code = state.room.room_code;
-      await sb.from('members').delete().eq('room_code', code).eq('username', username);
-      await sb.from('room_invites').upsert({ room_code: code, from_username: state.me.username, to_username: username, status: 'kicked', expires_at: null }, { onConflict: 'room_code,to_username' });
-      await sendSystem(code, `@${username} was kicked.`);
-    }
-
-    async function openDm(friend) {
-      const pair = [state.me.username, friend].sort();
-      const code = `DM_${pair.join('_').slice(0, 18).toUpperCase()}`;
-      const roomName = `DM: ${pair[0]} & ${pair[1]}`;
-      const { data: ex } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
-      if (!ex) {
-        await sb.from('rooms').insert({ room_code: code, room_name: roomName, host_username: pair[0], is_active: true });
-        await sb.from('room_access').upsert({ room_code: code, visibility: 'invite', description: 'Direct friend message', max_members: 2 }, { onConflict: 'room_code' });
-        await sb.from('room_invites').upsert({ room_code: code, from_username: state.me.username, to_username: friend, status: 'accepted' }, { onConflict: 'room_code,to_username' });
-      }
-      await joinRoom(code);
-    }
-
-    async function acceptFriendRequest(id) {
-      const req = state.reqs.find((r) => r.id === Number(id));
-      if (!req) return;
-      await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', req.id);
-      const [a,b] = [req.from_user, req.to_user].sort();
-      await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
-      await refreshFriends();
-    }
-
-    async function rejectFriendRequest(id) {
-      await sb.from('friend_requests').update({ status: 'rejected' }).eq('id', Number(id));
-      await refreshFriends();
-    }
-
-    async function acceptInviteById(id) {
-      const inv = state.invites.find((r) => r.id === Number(id));
-      if (!inv) return;
-      await sb.from('room_invites').update({ status: 'accepted' }).eq('id', Number(id));
-      await sendSystem(inv.room_code, `@${state.me.username} accepted invite.`);
-      await joinRoom(inv.room_code);
-      await refreshInvites();
-    }
-
-    async function rejectInviteById(id) {
-      await sb.from('room_invites').update({ status: 'rejected' }).eq('id', Number(id));
-      await refreshInvites();
-    }
-
-    async function refreshRoomMessageAlerts() {
-      if (!state.me) return;
-      const { data: memberships } = await sb.from('members').select('room_code').eq('username', state.me.username);
-      const codes = [...new Set((memberships || []).map((m) => m.room_code))];
-      state.memberRoomCodes = new Set(codes);
-      await Promise.all(codes.map(async (code) => {
-        const { data: row } = await sb.from('messages').select('id,username,created_at,message_type').eq('room', code).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (!row || row.username === state.me.username || row.message_type === 'system') return;
-        const prev = state.seenMessageIds[code];
-        state.seenMessageIds[code] = row.id;
-        if (!prev || prev === row.id || state.room?.room_code === code || state.mutedRooms.has(code)) return;
-        enqueueModal({
-          title: 'New room message',
-          body: `@${row.username} sent a new message in room <strong>${code}</strong>.`,
-          actions: [{ label: 'Open room', className: 'primary', onClick: async () => joinRoom(code) }]
-        });
-      }));
-    }
-
-    function subscribeGlobalNotifications() {
-      if (!state.me) return;
-      if (state.globalSub) {
-        try { sb.removeChannel(state.globalSub); } catch {}
-      }
-      const me = state.me.username;
-      state.globalSub = sb.channel(`global:${me}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests', filter: `to_user=eq.${me}` }, async () => {
-          await refreshFriends();
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_invites', filter: `to_username=eq.${me}` }, async () => {
-          await refreshInvites();
-          await refreshRooms();
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-          const row = payload.new || {};
-          if (row.username === me || row.message_type === 'system') return;
-          if (!state.memberRoomCodes.has(row.room) || state.mutedRooms.has(row.room)) return;
-          if (state.room?.room_code === row.room) return;
-          const prev = state.seenMessageIds[row.room];
-          state.seenMessageIds[row.room] = row.id;
-          if (prev === row.id) return;
-          enqueueModal({
-            title: 'New room message',
-            body: `@${row.username} sent a new message in room <strong>${row.room}</strong>.`,
-            actions: [{ label: 'Open room', className: 'primary', onClick: async () => joinRoom(row.room) }]
-          });
-        })
-        .subscribe();
-    }
-
-    async function signup() {
-      const username = el.suUser.value.trim().toLowerCase();
-      const password = el.suPass.value;
-      if (!/^[a-z0-9_]{3,24}$/.test(username)) return setStatus(el.suStatus, 'Username: 3-24 chars [a-z0-9_].', true);
-      if (!password || password.length < 3) return setStatus(el.suStatus, 'Password must be at least 3 characters.', true);
-
-      const { data: exists } = await sb.from('users').select('id').eq('username', username).maybeSingle();
-      if (exists) return setStatus(el.suStatus, 'Username already taken.', true);
-
-      const friend_code = friendCodeFromUsername(username);
-      const password_hash = await sha256(password);
-      const { error } = await sb.from('users').upsert({ username, password_hash, friend_code, created_at: new Date().toISOString(), last_seen: new Date().toISOString() }, { onConflict: 'username' });
-      if (error) return setStatus(el.suStatus, error.message, true);
-      setStatus(el.suStatus, 'Account created. Log in now.');
-      el.suPass.value = '';
-      showAuth(true);
-    }
-
-    async function login() {
-      const username = el.liUser.value.trim().toLowerCase();
-      const password = el.liPass.value;
-      if (!password) return setStatus(el.liStatus, 'Enter password.', true);
-      const isAdminLogin = username === 'p' && password === 'p';
-      if (isAdminLogin) {
-        await sb.from('users').upsert({
-          username: 'p',
-          password_hash: await sha256('p'),
-          friend_code: friendCodeFromUsername('p'),
-          created_at: new Date().toISOString(),
-          last_seen: new Date().toISOString(),
-          is_online: true
-        }, { onConflict: 'username' });
-      }
-      const { data: user } = await sb.from('users').select('*').eq('username', username).maybeSingle();
-      if (!user) return setStatus(el.liStatus, 'Account not found. Sign up first.', true);
-      const hashed = await sha256(password);
-      if (user.password_hash && user.password_hash !== hashed) return setStatus(el.liStatus, 'Incorrect password.', true);
-      if (!user.password_hash) await sb.from('users').update({ password_hash: hashed }).eq('username', username);
-
-      state.me = { username, friend_code: user.friend_code || friendCodeFromUsername(username) };
-      state.adminMode = isAdminLogin;
-      if (!user.friend_code) {
-        await sb.from('users').update({ friend_code: state.me.friend_code }).eq('username', username);
-      }
-      await sb.from('users').update({ last_seen: new Date().toISOString(), is_online: true }).eq('username', username);
-      el.liPass.value = '';
-      showApp();
-      await bootstrapAfterAuth();
-    }
-
-    async function logout() {
-      if (state.room) await forceLeaveRoom();
-      if (state.me) await sb.from('users').update({ is_online: false, last_seen: new Date().toISOString() }).eq('username', state.me.username);
-      if (state.globalSub) {
-        try { sb.removeChannel(state.globalSub); } catch {}
-        state.globalSub = null;
-      }
-      state.me = null;
-      state.adminMode = false;
-      showAuth(true);
-    }
-
-    async function bootstrapAfterAuth() {
-      await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
-      subscribeGlobalNotifications();
-      const refreshTicker = setInterval(async () => {
-        if (!state.me) return clearInterval(refreshTicker);
-        await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
-      }, 8000);
-    }
-
-    // Events
-    qs('#gotoLogin').onclick = () => showAuth(true);
-    qs('#gotoSignup').onclick = () => showAuth(false);
-    qs('#signupBtn').onclick = signup;
-    qs('#loginBtn').onclick = login;
-    el.suTogglePass.onclick = () => {
-      const hide = el.suPass.type === 'text';
-      el.suPass.type = hide ? 'password' : 'text';
-      el.suTogglePass.textContent = hide ? 'Show' : 'Hide';
-    };
-    el.liTogglePass.onclick = () => {
-      const hide = el.liPass.type === 'text';
-      el.liPass.type = hide ? 'password' : 'text';
-      el.liTogglePass.textContent = hide ? 'Show' : 'Hide';
-    };
-    qs('#logoutBtn').onclick = logout;
-    el.modalDismiss.onclick = closeModal;
-    el.copyFriendCodeBtn.onclick = async () => {
-      const code = state.me?.friend_code;
-      if (!code) return;
-      await navigator.clipboard.writeText(code);
-      setStatus(el.friendStatus, 'Friend code copied!');
-    };
-    el.copyJoinCodeBtn.onclick = async () => {
-      const code = normalizeRoomCode(el.joinCode.value);
-      if (!code) return setStatus(el.roomStatus, 'Enter room code first.', true);
-      await navigator.clipboard.writeText(code);
-      setStatus(el.roomStatus, `Room code ${code} copied!`);
-    };
-
-    qsa('.tab').forEach((b) => b.onclick = () => {
-      qsa('.tab').forEach((x) => x.classList.remove('active')); b.classList.add('active');
-      const tab = b.dataset.tab;
-      qs('#paneFriends').classList.toggle('hidden', tab !== 'friends');
-      qs('#paneRooms').classList.toggle('hidden', tab !== 'rooms');
-      qs('#paneRequests').classList.toggle('hidden', tab !== 'requests');
-    });
-
-    qs('#sendReqBtn').onclick = async () => {
-      const code = normalizeFriendCode(el.friendSearch.value);
-      if (!code) return setStatus(el.friendStatus, 'Enter a friend code.', true);
-      const { data: user } = await sb.from('users').select('username,friend_code').eq('friend_code', code).maybeSingle();
-      if (!user) return setStatus(el.friendStatus, 'User not found.', true);
-      const to = user.username;
-      if (to === state.me.username) return setStatus(el.friendStatus, 'That is your code.', true);
-      const [a,b] = [state.me.username, to].sort();
-      const { data: alreadyFriends } = await sb.from('friends').select('id').eq('user_a', a).eq('user_b', b).maybeSingle();
-      if (alreadyFriends) return setStatus(el.friendStatus, `@${to} is already your friend.`);
-      const { data: reverseReq } = await sb.from('friend_requests').select('*').eq('from_user', to).eq('to_user', state.me.username).eq('status', 'pending').maybeSingle();
-      if (reverseReq) {
-        await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', reverseReq.id);
-        await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
-        await refreshFriends();
-        return setStatus(el.friendStatus, `Friend added: @${to}.`);
-      }
-      const { data: already } = await sb.from('friend_requests').select('id').eq('from_user', state.me.username).eq('to_user', to).eq('status', 'pending').maybeSingle();
-      if (already) return setStatus(el.friendStatus, 'Request already pending.', true);
-      await sb.from('friend_requests').insert({ from_user: state.me.username, to_user: to, status: 'pending' });
-      setStatus(el.friendStatus, `Request sent to @${to}.`);
-      el.friendSearch.value = '';
-    };
-
-    qs('#createRoomBtn').onclick = createRoom;
-    qs('#joinCodeBtn').onclick = async () => {
-      const code = normalizeRoomCode(el.joinCode.value);
-      if (!code) return;
-      await joinRoom(code);
-    };
-    el.friendSearch.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        qs('#sendReqBtn').click();
-      }
-    });
-    el.friendSearch.addEventListener('input', () => {
-      el.friendSearch.value = normalizeFriendCode(el.friendSearch.value);
-    });
-    el.joinCode.addEventListener('input', () => {
-      el.joinCode.value = normalizeRoomCode(el.joinCode.value);
-    });
-
-    qs('#sendBtn').onclick = sendTextMessage;
-    el.msgInput.addEventListener('keydown', async (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        await sendTextMessage();
-      } else if (state.room) {
-        sb.channel(`typing:${state.room.room_code}`).send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: true } });
-        clearTimeout(el.msgInput._tt);
-        el.msgInput._tt = setTimeout(() => {
-          sb.channel(`typing:${state.room.room_code}`).send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: false } });
-        }, 850);
-      }
-    });
-
-    qsa('.emojiBtn').forEach((b) => b.onclick = () => { el.msgInput.value += b.dataset.emoji; el.msgInput.focus(); });
-    qs('#gifBtn').onclick = async () => {
-      const url = prompt('Paste GIF URL:');
-      if (!url) return;
-      await sb.from('messages').insert({ username: state.me.username, room: state.room.room_code, message: messagePayload('GIF', { body: url, media: { kind: 'image', data: url, name: 'gif' } }), message_type: 'gif' });
-    };
-
-    el.mediaInput.addEventListener('change', (e) => sendMedia(e.target.files[0]));
-    ['dragenter','dragover'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => { e.preventDefault(); el.dropZone.classList.add('drag'); }));
-    ['dragleave','drop'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => { e.preventDefault(); el.dropZone.classList.remove('drag'); }));
-    el.dropZone.addEventListener('drop', (e) => sendMedia(e.dataTransfer.files[0]));
-
-    el.msgSearch.addEventListener('input', renderChat);
-    el.leaveBtn.onclick = () => forceLeaveRoom();
-    el.closeBtn.onclick = closeRoom;
-
-    el.chat.addEventListener('scroll', () => {
-      const nearBottom = el.chat.scrollHeight - (el.chat.scrollTop + el.chat.clientHeight) < 80;
-      el.jumpLatest.classList.toggle('hidden', nearBottom);
-    });
-    el.jumpLatest.onclick = () => { el.chat.scrollTop = el.chat.scrollHeight; el.jumpLatest.classList.add('hidden'); };
-
-    el.chat.addEventListener('click', async (e) => {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      if (btn.dataset.reply) {
-        const m = state.messages.find(x => x.id === Number(btn.dataset.reply));
-        state.replyTo = m;
-        el.replyBar.classList.remove('hidden');
-        el.replyBar.textContent = `Replying to @${m.username}: ${(m.payload.body || '').slice(0, 100)} (click to clear)`;
-      }
-      if (btn.dataset.react) {
-        const [id, emo] = btn.dataset.react.split(':');
-        await updateMessage(Number(id), (p) => {
-          p.reactions ||= {};
-          p.reactions[emo] ||= [];
-          if (p.reactions[emo].includes(state.me.username)) p.reactions[emo] = p.reactions[emo].filter((u) => u !== state.me.username);
-          else p.reactions[emo].push(state.me.username);
-        });
-      }
-      if (btn.dataset.copy) {
-        const m = state.messages.find(x => x.id === Number(btn.dataset.copy));
-        await navigator.clipboard.writeText(m.payload.body || '');
-      }
-      if (btn.dataset.delete) {
-        const id = Number(btn.dataset.delete);
-        const m = state.messages.find(x => x.id === id);
-        if (!m) return;
-        if (!(m.username === state.me.username || isHost())) return;
-        await updateMessage(id, (p) => { p.deleted = true; p.body = ''; p.media = null; p.edited_at = new Date().toISOString(); });
-      }
-      if (btn.dataset.edit) {
-        const id = Number(btn.dataset.edit);
-        const m = state.messages.find(x => x.id === id);
-        const next = prompt('Edit message:', m.payload.body || '');
-        if (next == null) return;
-        await updateMessage(id, (p) => { p.body = next; p.edited_at = new Date().toISOString(); });
-      }
-    });
-
-    el.replyBar.onclick = clearReply;
-
-    el.friendsList.addEventListener('click', async (e) => {
-      const dm = e.target.closest('[data-dm]')?.dataset.dm;
-      const inviteUser = e.target.closest('[data-invite-user]')?.dataset.inviteUser;
-      if (dm) await openDm(dm);
-      if (inviteUser && state.room) {
-        await sb.from('room_invites').upsert({ room_code: state.room.room_code, from_username: state.me.username, to_username: inviteUser, status: 'pending', expires_at: null }, { onConflict: 'room_code,to_username' });
-        await sendSystem(state.room.room_code, `@${inviteUser} invited by @${state.me.username}.`);
-      }
-    });
-
-    el.requestList.addEventListener('click', async (e) => {
-      const acc = e.target.closest('[data-accept]')?.dataset.accept;
-      const rej = e.target.closest('[data-reject]')?.dataset.reject;
-      if (acc) await acceptFriendRequest(acc);
-      if (rej) await rejectFriendRequest(rej);
-    });
-
-    el.inviteList.addEventListener('click', async (e) => {
-      const acc = e.target.closest('[data-invite-accept]')?.dataset.inviteAccept;
-      const rej = e.target.closest('[data-invite-reject]')?.dataset.inviteReject;
-      if (acc) await acceptInviteById(acc);
-      if (rej) await rejectInviteById(rej);
-    });
-
-    el.roomList.addEventListener('click', async (e) => {
-      const code = e.target.closest('[data-join-room]')?.dataset.joinRoom;
-      const muteCode = e.target.closest('[data-mute-room]')?.dataset.muteRoom;
-      const copyCode = e.target.closest('[data-copy-room]')?.dataset.copyRoom;
-      const clearCode = e.target.closest('[data-clear-room]')?.dataset.clearRoom;
-      if (code) {
-        await joinRoom(code);
-      }
-      if (muteCode) {
-        if (state.mutedRooms.has(muteCode)) state.mutedRooms.delete(muteCode);
-        else state.mutedRooms.add(muteCode);
-        saveMutedRooms();
-        renderRoomList();
-      }
-      if (copyCode) {
-        await navigator.clipboard.writeText(copyCode);
-        setStatus(el.roomStatus, `Room code ${copyCode} copied.`);
-      }
-      if (clearCode) {
-        await hideRoomFromList(clearCode);
-      }
-    });
-
-    el.memberListBar.addEventListener('click', async (e) => {
-      const target = e.target.closest('[data-kick]')?.dataset.kick;
-      if (target) await kickUser(target);
-    });
-
-    setInterval(async () => {
-      if (!state.room || !isHost()) return;
-      // keep host authority from backend data only
-      const { data: hostMember } = await sb.from('members').select('*').eq('room_code', state.room.room_code).eq('username', state.room.host_username).maybeSingle();
-      if (!hostMember) {
-        const fallback = state.members.find((m) => m.is_online);
-        if (fallback) {
-          await sb.from('members').update({ is_host: true }).eq('room_code', state.room.room_code).eq('username', fallback.username);
-          await sb.from('rooms').update({ host_username: fallback.username }).eq('room_code', state.room.room_code);
-        }
-      }
-    }, 12000);
-
-    // init
-    (async function init() {
-      await wipeCloudDataOnce();
-      showAuth(true);
-    })();
-  </script>
-</body>
-</html>
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/index.html b/index.html
+index 3baae44f33daa39f9132d8a7db1f1ada327ec120..eb8909ebf38a31312ad79c223adeb31f9fbb1047 100644
+--- a/index.html
++++ b/index.html
+@@ -1,1177 +1,1506 @@
+ <!DOCTYPE html>
+ <html lang="en">
+ <head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1" />
+-  <title>Supabase Room Chat</title>
++  <title>Private Friends Chat</title>
+   <style>
+     :root {
+-      --bg: #0f172a;
+-      --panel: #111827;
+-      --panel-2: #1f2937;
+-      --text: #e5e7eb;
+-      --muted: #9ca3af;
+-      --accent: #22c55e;
++      --bg: #140d30;
++      --panel: #20164c;
++      --panel-soft: #2a1f61;
++      --line: #4a3f87;
++      --txt: #f4f2ff;
++      --muted: #c6bdeb;
++      --brand: #44b4f6;
++      --brand-2: #22c55e;
+       --danger: #ef4444;
+-      --bubble-me: #2563eb;
+-      --bubble-other: #374151;
+-      --bubble-system: #334155;
+-      --host: #f59e0b;
++      --bubble-self: linear-gradient(145deg, #14b8a6, #0ea5e9);
++      --bubble-other: #2b2261;
++      --bubble-system: #3a3180;
++      --ok: #22c55e;
++      --warn: #f59e0b;
+     }
+ 
+     * { box-sizing: border-box; }
++    html, body { margin: 0; min-height: 100%; font-family: Inter, Segoe UI, Arial, sans-serif; color: var(--txt); background: radial-gradient(circle at top left, #5d33d6, #120a2b 58%); }
++    .hidden { display: none !important; }
+ 
+-    body {
+-      margin: 0;
+-      font-family: Inter, Arial, sans-serif;
+-      color: var(--text);
+-      background: radial-gradient(circle at top, #1e293b 0%, #0b1120 55%);
+-      min-height: 100vh;
+-    }
+-
+-    .app-shell {
++    .app {
+       min-height: 100vh;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+-      padding: 16px;
++      padding: 14px;
+     }
+ 
+-    .card {
+-      width: min(980px, 100%);
+-      background: rgba(17, 24, 39, 0.95);
+-      border: 1px solid #334155;
+-      border-radius: 16px;
+-      padding: 20px;
+-      box-shadow: 0 18px 35px rgba(0, 0, 0, 0.35);
++    .shell {
++      width: min(1200px, 100%);
++      min-height: 88vh;
++      border-radius: 22px;
++      border: 1px solid var(--line);
++      background: rgba(16, 27, 45, 0.92);
++      box-shadow: 0 20px 44px rgba(0, 0, 0, .45);
++      overflow: hidden;
+       backdrop-filter: blur(6px);
+     }
+ 
+-    h1, h2, h3 { margin: 0 0 12px; }
+-    p { margin: 8px 0; color: var(--muted); }
+-    .hidden { display: none !important; }
+-
+-    input, button, select {
+-      width: 100%;
+-      border-radius: 10px;
+-      border: 1px solid #334155;
+-      padding: 11px 12px;
+-      font-size: 14px;
++    .auth-wrap {
++      min-height: 88vh;
++      display: grid;
++      place-items: center;
++      padding: 20px;
++      background: linear-gradient(150deg, rgba(99, 102, 241, .22), rgba(14, 165, 233, .14));
+     }
+ 
+-    input, select {
+-      background: #0b1220;
+-      color: var(--text);
+-      margin: 8px 0;
++    .auth-card {
++      width: min(430px, 100%);
++      border: 1px solid var(--line);
++      border-radius: 18px;
++      background: rgba(10, 18, 31, .92);
++      padding: 20px;
+     }
+ 
+-    button {
+-      cursor: pointer;
+-      background: #1e293b;
+-      color: #fff;
+-      margin: 8px 0;
+-      font-weight: 600;
++    input, button, select, textarea {
++      width: 100%;
++      border-radius: 11px;
++      border: 1px solid var(--line);
++      background: #0c1525;
++      color: var(--txt);
++      padding: 10px 11px;
++      margin-top: 8px;
++      font-size: 14px;
+     }
+-
+-    button.primary { background: #2563eb; }
+-    button.success { background: #15803d; }
+-    button.warning { background: #a16207; }
++    textarea { min-height: 80px; resize: vertical; }
++    button { cursor: pointer; font-weight: 600; }
++    button.primary { background: var(--brand); border-color: #3a8bff; }
++    button.success { background: #0f8e3d; }
++    button.warn { background: #9a670f; }
+     button.danger { background: #b91c1c; }
++    button.soft { background: #192b45; }
+     button.ghost { background: transparent; }
++    button:disabled { opacity: .55; cursor: not-allowed; }
+ 
+-    .row { display: flex; gap: 8px; }
+-    .row > * { flex: 1; }
++    .tiny { font-size: 12px; color: var(--muted); }
++    .status { min-height: 18px; font-size: 12px; margin-top: 8px; color: var(--muted); }
+ 
+-    .auth-wrap {
+-      max-width: 420px;
+-      margin: 0 auto;
+-      transition: all 0.25s ease;
+-    }
+-
+-    .hint { font-size: 12px; color: var(--muted); }
+-    .error { color: #fecaca; font-size: 12px; }
+-    .ok { color: #86efac; font-size: 12px; }
+-
+-    .menu-grid {
++    .main {
+       display: grid;
+-      gap: 16px;
+-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
++      grid-template-columns: 320px 1fr;
++      min-height: 88vh;
+     }
+ 
+-    .panel {
+-      background: var(--panel-2);
+-      border: 1px solid #334155;
+-      border-radius: 12px;
+-      padding: 14px;
++    .side {
++      border-right: 1px solid var(--line);
++      background: linear-gradient(180deg, rgba(20, 35, 57, .98), rgba(12, 22, 38, .95));
++      display: flex;
++      flex-direction: column;
++      min-height: 0;
+     }
+ 
+-    .saved-room {
++    .me {
++      position: relative;
+       display: flex;
+-      justify-content: space-between;
+       align-items: center;
+-      gap: 8px;
+-      border-bottom: 1px solid #334155;
+-      padding: 6px 0;
++      gap: 10px;
++      padding: 12px;
++      border-bottom: 1px solid var(--line);
+     }
+-
+-    .chat-layout {
++    .avatar {
++      width: 40px;
++      height: 40px;
++      border-radius: 50%;
+       display: grid;
+-      grid-template-columns: 260px 1fr;
+-      gap: 12px;
+-      min-height: 70vh;
+-    }
+-
+-    .sidebar, .chat-main {
+-      background: var(--panel-2);
+-      border: 1px solid #334155;
+-      border-radius: 12px;
+-      padding: 10px;
+-      display: flex;
+-      flex-direction: column;
+-      min-height: 0;
++      place-items: center;
++      font-weight: 700;
++      background: #204270;
++      position: relative;
++    }
++    .verified-dot {
++      position: absolute;
++      width: 9px;
++      height: 9px;
++      border-radius: 50%;
++      border: 2px solid #0f1f34;
++      background: #22c55e;
++      bottom: -1px;
++      left: -1px;
+     }
+-
+-    .member-list {
+-      overflow: auto;
+-      max-height: 230px;
+-      border: 1px solid #334155;
+-      border-radius: 10px;
+-      padding: 8px;
+-      background: #0b1220;
++    .admin-pill {
++      font-size: 10px;
++      color: #86efac;
++      border: 1px solid #1f6338;
++      border-radius: 999px;
++      padding: 1px 6px;
++      margin-left: 6px;
+     }
+-
+-    .member {
+-      padding: 7px;
+-      border-radius: 8px;
+-      margin: 4px 0;
+-      background: #0f172a;
++    .pass-row { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
++    .pass-row input { margin:0; }
++    .pass-row button { width:auto; margin:0; }
++    .modal-wrap {
++      position: fixed;
++      inset: 0;
++      background: rgba(4, 10, 20, 0.56);
+       display: flex;
+-      justify-content: space-between;
+       align-items: center;
+-      gap: 8px;
++      justify-content: center;
++      z-index: 30;
++      padding: 16px;
+     }
+-
+-    .member.current { border: 1px solid #3b82f6; }
+-    .badge {
+-      font-size: 11px;
+-      border-radius: 999px;
+-      padding: 2px 8px;
+-      background: #334155;
+-      color: #e2e8f0;
++    .modal {
++      width: min(460px, 100%);
++      background: #101b30;
++      border: 1px solid var(--line);
++      border-radius: 16px;
++      padding: 14px;
++      box-shadow: 0 12px 34px rgba(0,0,0,0.4);
+     }
+ 
+-    .badge.host { background: #78350f; color: #fcd34d; }
++    .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
++    .tab.active { background: var(--brand); }
+ 
+-    .chat-header {
+-      display: flex;
+-      justify-content: space-between;
+-      align-items: center;
+-      gap: 8px;
+-      flex-wrap: wrap;
+-      border-bottom: 1px solid #334155;
+-      padding-bottom: 8px;
+-      margin-bottom: 8px;
++    .pane {
++      padding: 10px;
++      overflow: auto;
++      min-height: 0;
++      flex: 1;
+     }
+ 
+-    #chatBox {
+-      flex: 1;
+-      overflow: auto;
+-      padding: 8px;
+-      background: #0b1220;
+-      border-radius: 10px;
+-      border: 1px solid #334155;
++    .row-item {
++      border: 1px solid var(--line);
++      border-radius: 12px;
++      background: #14243b;
++      padding: 9px;
++      margin-bottom: 8px;
++      animation: fadeIn .18s ease;
+     }
++    @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0);} }
+ 
+-    .msg {
+-      margin: 10px 0;
++    .content {
+       display: flex;
+       flex-direction: column;
+-      max-width: 85%;
++      min-height: 0;
+     }
+ 
+-    .msg.self { margin-left: auto; align-items: flex-end; }
++    .topbar {
++      padding: 12px;
++      border-bottom: 1px solid var(--line);
++      display: flex;
++      gap: 8px;
++      align-items: center;
++      justify-content: space-between;
++      background: rgba(16, 27, 45, .9);
++    }
+ 
+-    .meta {
+-      font-size: 12px;
+-      color: var(--muted);
+-      margin-bottom: 2px;
++    .chat {
++      flex: 1;
++      overflow: auto;
++      padding: 12px;
++      background: linear-gradient(180deg, rgba(6, 15, 27, .7), rgba(9, 18, 32, .92));
++      scroll-behavior: smooth;
+     }
+ 
++    .msg { max-width: 82%; margin-bottom: 11px; }
++    .msg.self { margin-left: auto; }
++    .meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+     .bubble {
+-      padding: 10px;
+-      border-radius: 10px;
+       background: var(--bubble-other);
+-      line-height: 1.4;
++      border: 1px solid #2b4060;
++      border-radius: 14px;
++      padding: 9px 10px;
++      line-height: 1.35;
+       white-space: pre-wrap;
+       word-break: break-word;
+     }
++    .msg.self .bubble { background: var(--bubble-self); border-color: #3f79f0; }
++    .msg.system { margin-inline: auto; }
++    .msg.system .bubble { background: var(--bubble-system); border-style: dashed; font-size: 12px; }
+ 
+-    .msg.self .bubble { background: var(--bubble-me); }
+-    .msg.system { margin: 8px auto; align-items: center; }
+-    .msg.system .bubble {
+-      background: var(--bubble-system);
+-      color: #dbeafe;
+-      font-size: 13px;
+-      border: 1px dashed #64748b;
+-    }
+-
+-    .typing { font-size: 12px; color: #93c5fd; height: 16px; padding: 2px 4px; }
+-
+-    .composer { margin-top: 8px; }
+-
+-    .emoji-strip {
+-      display: flex;
+-      gap: 6px;
+-      flex-wrap: wrap;
+-      margin-top: 6px;
+-    }
+-
+-    .emoji-strip button {
+-      width: auto;
+-      min-width: 38px;
+-      padding: 8px;
+-      margin: 0;
+-    }
+-
+-    .small-btn {
+-      width: auto;
+-      margin: 0;
+-      padding: 6px 10px;
+-      font-size: 12px;
+-    }
++    .quoted { border-left: 3px solid #95bfff; padding-left: 7px; margin-bottom: 7px; color: #bad3f5; font-size: 12px; }
++    .actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
++    .actions button { width: auto; margin: 0; padding: 3px 8px; font-size: 11px; border-radius: 999px; }
+ 
+-    .status {
+-      font-size: 12px;
+-      min-height: 16px;
+-      color: #cbd5e1;
++    .composer {
++      border-top: 1px solid var(--line);
++      padding: 10px;
++      background: rgba(13, 24, 40, .95);
+     }
+ 
+-    .top-admin-btn {
++    .compose-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
++    .jump-btn {
+       position: fixed;
+-      top: 12px;
+-      right: 12px;
+-      width: 38px;
+-      height: 38px;
++      right: 26px;
++      bottom: 96px;
++      width: auto;
++      padding: 8px 10px;
++      z-index: 20;
+       border-radius: 999px;
+-      border: 2px solid #22c55e;
+-      background: #052e16;
+-      color: #86efac;
+-      font-size: 18px;
+-      z-index: 50;
+-      padding: 0;
++      background: #1f3c65;
+     }
+ 
+-    .modal {
+-      position: fixed;
+-      inset: 0;
+-      background: rgba(2, 6, 23, 0.7);
+-      display: flex;
+-      align-items: center;
+-      justify-content: center;
+-      z-index: 60;
+-      padding: 14px;
+-    }
+-
+-    .modal-card {
+-      width: min(680px, 100%);
+-      max-height: 80vh;
+-      overflow: auto;
+-      background: #0f172a;
+-      border: 1px solid #334155;
+-      border-radius: 12px;
+-      padding: 14px;
+-    }
+-
+-    .friend-row, .admin-row {
+-      display: flex;
+-      align-items: center;
+-      justify-content: space-between;
+-      gap: 8px;
++    .drop {
++      border: 1px dashed #35527a;
++      border-radius: 11px;
+       padding: 8px;
+-      border-bottom: 1px solid #334155;
++      margin-top: 8px;
++      text-align: center;
++      color: var(--muted);
+     }
++    .drop.drag { border-color: #65a1ff; color: #c7dcff; }
+ 
+-    .dot {
+-      width: 8px;
+-      height: 8px;
+-      border-radius: 50%;
+-      display: inline-block;
+-      margin-right: 6px;
+-    }
++    .pill { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; font-size: 11px; }
++    .on { color: #86efac; }
++    .off { color: #94a3b8; }
+ 
+-    .dot.online { background: #22c55e; }
+-    .dot.offline { background: #64748b; }
++    img.media, video.media { max-width: 250px; border-radius: 10px; margin-top: 6px; border: 1px solid #35527a; }
+ 
+-    @media (max-width: 820px) {
+-      .chat-layout { grid-template-columns: 1fr; }
+-      .sidebar { order: 2; }
+-      .chat-main { order: 1; min-height: 60vh; }
++    @media (max-width: 900px) {
++      .main { grid-template-columns: 1fr; }
++      .side { max-height: 42vh; border-right: none; border-bottom: 1px solid var(--line); }
++      .jump-btn { right: 12px; }
+     }
+   </style>
+ </head>
+ <body>
+-  <div class="app-shell">
+-    <div class="card">
+-      <div id="authScreen" class="auth-wrap">
+-        <h1>Welcome to Room Chat</h1>
+-        <p>Fast room chat powered by Supabase.</p>
+-        <p class="hint">This was made by Jayden Clarke.</p>
+-
+-        <div id="signupPanel">
+-          <h3>Sign up</h3>
+-          <input id="signupUser" placeholder="Choose username" maxlength="24" />
+-          <input id="signupPass" type="password" placeholder="Choose password" />
+-          <div id="passwordStrength" class="hint">Password strength: -</div>
+-          <button class="primary" id="signupBtn">Create account</button>
+-          <div id="signupStatus" class="error"></div>
+-          <button class="ghost" id="toLogin">I already have an account</button>
+-        </div>
++  <div class="app">
++    <div class="shell">
++      <section id="authView" class="auth-wrap">
++        <div class="auth-card">
++          <h2 style="margin-top:0;">Private Friends Chat</h2>
++          <p class="tiny">WhatsApp-style private messaging with friend-based room access.</p>
++          <p class="tiny" style="margin-top:-4px;">Made by Jayden Clarke</p>
++
++          <div id="signupBox">
++            <h3>Sign up</h3>
++            <input id="suUser" placeholder="Username" maxlength="24" />
++            <div style="display:flex; gap:6px; align-items:center;">
++              <input id="suPass" type="password" placeholder="Password" maxlength="72" />
++              <button id="suTogglePass" class="soft" style="width:auto; margin:0;">Show</button>
++            </div>
++            <button id="signupBtn" class="primary">Create account</button>
++            <div id="suStatus" class="status"></div>
++            <button id="gotoLogin" class="ghost">I already have an account</button>
++          </div>
+ 
+-        <div id="loginPanel" class="hidden">
+-          <h3>Log in</h3>
+-          <input id="loginUser" placeholder="Username" maxlength="24" />
+-          <input id="loginPass" type="password" placeholder="Password" />
+-          <button class="primary" id="loginBtn">Log in</button>
+-          <div id="loginStatus" class="error"></div>
+-          <button class="ghost" id="toSignup">Create a new account</button>
++          <div id="loginBox" class="hidden">
++            <h3>Login</h3>
++            <input id="liUser" placeholder="Username" maxlength="24" />
++            <div style="display:flex; gap:6px; align-items:center;">
++              <input id="liPass" type="password" placeholder="Password" maxlength="72" />
++              <button id="liTogglePass" class="soft" style="width:auto; margin:0;">Show</button>
++            </div>
++            <button id="loginBtn" class="primary">Login</button>
++            <div id="liStatus" class="status"></div>
++            <button id="gotoSignup" class="ghost">Create account</button>
++          </div>
+         </div>
+-      </div>
++      </section>
+ 
+-      <div id="menuScreen" class="hidden">
+-        <div class="row" style="align-items:center; justify-content:space-between;">
+-          <h2 style="margin:0;">Hi, <span id="menuUser"></span></h2>
+-          <button id="logoutBtn" class="small-btn ghost">Logout</button>
+-        </div>
+-        <div class="menu-grid">
+-          <div class="panel">
+-            <h3>Create room</h3>
+-            <input id="roomNameInput" placeholder="Room name" maxlength="48" />
+-            <select id="roomModeSelect">
+-              <option value="code">Code-only room</option>
+-              <option value="public">Public-for-friends room</option>
+-            </select>
+-            <button id="createRoomBtn" class="success">Create room</button>
++      <section id="appView" class="main hidden">
++        <aside class="side">
++          <div class="me">
++            <div class="avatar" id="meAvatar"><span id="meAvatarText">?</span>
++              <div class="verified-dot hidden" id="adminTick" title="admin mode"></div>
++            </div>
++            <div>
++              <div><strong id="meName">-</strong> <span id="adminBadge" class="admin-pill hidden">admin</span> <span id="hostCrown" class="hidden">👑</span></div>
++              <div class="tiny" id="mePresence">offline</div>
++            </div>
++            <button id="logoutBtn" class="soft" style="width:auto; margin-left:auto;">Logout</button>
+           </div>
+ 
+-          <div class="panel">
+-            <h3>Join room</h3>
+-            <input id="joinCodeInput" placeholder="Room code" maxlength="10" />
+-            <button id="joinRoomBtn" class="primary">Join room</button>
++          <div class="tabs">
++            <button class="tab active" data-tab="friends">Friends</button>
++            <button class="tab" data-tab="rooms">Rooms</button>
++            <button class="tab" data-tab="requests">Requests</button>
+           </div>
+ 
+-          <div class="panel">
+-            <h3>Saved rooms</h3>
+-            <div id="savedRooms"></div>
++          <div class="pane" id="paneFriends">
++            <h4>Contacts</h4>
++            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
++              <div class="tiny" id="myFriendCode">Friend code: -</div>
++              <button id="copyFriendCodeBtn" class="soft" style="width:auto; margin:0;">Copy</button>
++            </div>
++            <input id="friendSearch" placeholder="Enter friend code (example: JAYD-2F9Q)" maxlength="24" />
++            <button id="sendReqBtn" class="soft">Send request</button>
++            <div id="friendStatus" class="status"></div>
++            <div id="friendsList"></div>
+           </div>
+ 
+-          <div class="panel">
+-            <h3>Friends</h3>
+-            <input id="findFriendInput" placeholder="Find username" maxlength="24" />
+-            <button id="sendFriendRequestBtn">Send friend request</button>
+-            <div id="friendStatus" class="status"></div>
+-            <div id="friendList"></div>
+-            <h4>Incoming requests</h4>
+-            <div id="incomingRequests"></div>
++          <div class="pane hidden" id="paneRooms">
++            <h4>Create room</h4>
++            <input id="roomName" placeholder="Room name" maxlength="48" />
++            <textarea id="roomDesc" placeholder="Description/topic (optional)"></textarea>
++            <select id="roomVisibility">
++              <option value="private">Private</option>
++              <option value="friends">Friends-only</option>
++              <option value="invite">Invite-only</option>
++              <option value="public">Public (code join)</option>
++            </select>
++            <input id="roomMax" type="number" min="2" max="250" value="40" />
++            <button id="createRoomBtn" class="success">Create room</button>
++            <h4>Join by code</h4>
++            <div style="display:flex; gap:6px;">
++              <input id="joinCode" placeholder="Room code" maxlength="12" />
++              <button id="copyJoinCodeBtn" class="soft" style="width:auto;">Copy</button>
++            </div>
++            <button id="joinCodeBtn" class="primary">Join room</button>
++            <div id="roomStatus" class="status"></div>
++            <h4>My visible rooms</h4>
++            <div id="roomList"></div>
+           </div>
+-        </div>
+-        <div id="menuStatus" class="status"></div>
+-      </div>
+-
+-      <div id="chatScreen" class="hidden">
+-        <div class="chat-layout">
+-          <aside class="sidebar">
+-            <h3>Members</h3>
+-            <div class="member-list" id="memberList"></div>
+-            <div class="status" id="sidebarStatus"></div>
+-            <hr style="border-color:#334155; width:100%;" />
+-            <div id="hostControls" class="hidden">
+-              <h3>Host controls</h3>
+-              <button id="closeRoomBtn" class="danger">Close room</button>
+-              <p class="hint">Kick users from the member list.</p>
++
++          <div class="pane hidden" id="paneRequests">
++            <h4>Friend requests</h4>
++            <div id="requestList"></div>
++            <h4>Room invites</h4>
++            <div id="inviteList"></div>
++          </div>
++        </aside>
++
++        <main class="content">
++          <div class="topbar">
++            <div>
++              <div><strong id="activeRoomName">No room joined</strong></div>
++              <div class="tiny" id="activeRoomMeta">Start with your friends, not public lobbies.</div>
+             </div>
+-            <button id="leaveRoomBtn" class="warning">Leave room</button>
+-          </aside>
+-
+-          <section class="chat-main">
+-            <div class="chat-header">
+-              <div>
+-                <strong id="roomLabel"></strong>
+-                <div class="hint">Code: <span id="roomCodeLabel"></span></div>
+-              </div>
+-              <div class="row" style="width:auto;">
+-                <button id="copyCodeBtn" class="small-btn">Copy room code</button>
+-              </div>
++            <div style="display:flex; gap:6px; align-items:center;">
++              <label class="pill"><input type="checkbox" id="autoScroll" checked style="width:auto; margin:0;"> auto-scroll</label>
++              <button id="leaveBtn" class="warn hidden" style="width:auto;">Leave</button>
++              <button id="closeBtn" class="danger hidden" style="width:auto;">Close room</button>
+             </div>
++          </div>
+ 
+-            <div id="chatBox"></div>
+-            <div id="typingIndicator" class="typing"></div>
+-            <div id="chatStatus" class="status"></div>
+-
+-            <div class="composer">
+-              <input id="messageInput" placeholder="Type a message..." maxlength="500" />
+-              <div class="emoji-strip" id="emojiStrip">
+-                <button type="button">😀</button><button type="button">😂</button><button type="button">🔥</button>
+-                <button type="button">👍</button><button type="button">❤️</button><button type="button">🎉</button>
+-                <button type="button">🙌</button><button type="button">😎</button>
+-              </div>
+-              <div class="row">
+-                <button id="sendBtn" class="primary">Send</button>
+-              </div>
+-            </div>
+-          </section>
+-        </div>
+-      </div>
+-
+-      <button id="adminOpenBtn" class="top-admin-btn" title="Admin mode">✅</button>
+-
+-      <div id="adminModal" class="modal hidden">
+-        <div class="modal-card">
+-          <h3>Admin mode</h3>
+-          <div id="adminLoginPanel">
+-            <p class="hint">Admin username/password required.</p>
+-            <input id="adminUser" placeholder="Admin username" />
+-            <input id="adminPass" type="password" placeholder="Admin password" />
+-            <button id="adminLoginBtn" class="success">Enter admin mode</button>
+-            <div id="adminLoginStatus" class="error"></div>
++          <div style="padding:8px 12px; border-bottom:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap;">
++            <input id="msgSearch" placeholder="Search messages..." style="max-width:260px; margin:0;" />
++            <div class="pill" id="typingPill">typing: none</div>
++            <div class="pill" id="memberPill">members: 0</div>
++            <div class="pill" id="activityPill">activity: idle</div>
+           </div>
+-          <div id="adminPanel" class="hidden">
+-            <p class="hint">Monitoring users and moderation tools.</p>
+-            <div id="adminUsers"></div>
++          <div id="memberListBar" style="padding:8px 12px; border-bottom:1px solid var(--line); max-height:94px; overflow:auto;"></div>
++
++          <div id="chat" class="chat"></div>
++          <button id="jumpLatest" class="jump-btn hidden">Jump to latest ⬇</button>
++
++          <div class="composer">
++            <div id="replyBar" class="tiny hidden"></div>
++            <div class="compose-grid">
++              <input id="msgInput" placeholder="Type message... Use @username" maxlength="4000" />
++              <button id="sendBtn" class="primary" style="width:auto;">Send</button>
++            </div>
++            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
++              <button class="soft emojiBtn" data-emoji="👍" style="width:auto;">👍</button>
++              <button class="soft emojiBtn" data-emoji="❤️" style="width:auto;">❤️</button>
++              <button class="soft emojiBtn" data-emoji="😂" style="width:auto;">😂</button>
++              <button id="gifBtn" class="soft" style="width:auto;">Send GIF URL</button>
++              <input id="mediaInput" type="file" style="max-width:260px;" />
++            </div>
++            <div id="dropZone" class="drop">Drag-drop image/video/file here</div>
++            <div id="composeStatus" class="status"></div>
+           </div>
+-          <button id="adminCloseBtn" class="ghost">Close</button>
+-        </div>
+-      </div>
++        </main>
++      </section>
++    </div>
++  </div>
++  <div id="modalWrap" class="modal-wrap hidden">
++    <div class="modal">
++      <h3 id="modalTitle" style="margin-top:0;">Notification</h3>
++      <div id="modalBody" class="tiny" style="line-height:1.4;"></div>
++      <div id="modalActions" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;"></div>
++      <button id="modalDismiss" class="ghost">Close</button>
+     </div>
+   </div>
+ 
+   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+   <script>
+     const supabaseUrl = "https://lnfndmakffuqddfrwlqj.supabase.co";
+     const supabaseKey = "sb_publishable_PWEwP03MzgGMGCD2ii2lLg_2lljwtLK";
+-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+-
+-    const appState = {
+-      usersDB: JSON.parse(localStorage.getItem("chat_users") || "{}"),
+-      currentUser: JSON.parse(localStorage.getItem("chat_session") || "null"),
+-      bannedDB: JSON.parse(localStorage.getItem("chat_banned_users") || "{}"),
+-      friendsDB: JSON.parse(localStorage.getItem("chat_friends") || "{}"),
+-      friendRequestsDB: JSON.parse(localStorage.getItem("chat_friend_requests") || "{}"),
+-      roomModes: JSON.parse(localStorage.getItem("chat_room_modes") || "{}"),
++    const sb = supabase.createClient(supabaseUrl, supabaseKey);
++
++    const LEGACY_KEYS = [
++      'chat_users','chat_session','chat_banned_users','chat_friends','chat_friend_requests','chat_room_modes','chat_saved_rooms'
++    ];
++    if (!localStorage.getItem('fresh_reset_done_v4')) {
++      LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
++      localStorage.removeItem('freshchat_session');
++      localStorage.removeItem('freshchat_muted_rooms');
++      localStorage.setItem('fresh_reset_done_v4', '1');
++    }
++
++    const state = {
++      me: null,
++      meUser: null,
+       room: null,
+-      roomMeta: null,
++      roomAccess: null,
+       members: [],
+       messages: [],
+-      messagesSubscription: null,
+-      roomSubscription: null,
+-      membersSubscription: null,
+-      typingChannel: null,
++      friends: [],
++      reqs: [],
++      invites: [],
++      roomList: [],
++      mutedRooms: new Set(JSON.parse(localStorage.getItem('freshchat_muted_rooms') || '[]')),
++      replyTo: null,
+       typingUsers: new Set(),
+-      typingTimer: null
++      subscriptions: [],
++      globalSub: null,
++      memberRoomCodes: new Set(),
++      adminMode: false,
++      modalQueue: [],
++      modalOpen: false,
++      lastInviteIds: new Set(),
++      lastReqIds: new Set(),
++      seenMessageIds: {}
+     };
+ 
+-    const savedRoomsKey = "chat_saved_rooms";
+-    const ADMIN_USER = "p";
+-    const ADMIN_PASS = "p";
+-    const els = {
+-      authScreen: document.getElementById("authScreen"),
+-      signupPanel: document.getElementById("signupPanel"),
+-      loginPanel: document.getElementById("loginPanel"),
+-      signupUser: document.getElementById("signupUser"),
+-      signupPass: document.getElementById("signupPass"),
+-      passwordStrength: document.getElementById("passwordStrength"),
+-      signupStatus: document.getElementById("signupStatus"),
+-      loginUser: document.getElementById("loginUser"),
+-      loginPass: document.getElementById("loginPass"),
+-      loginStatus: document.getElementById("loginStatus"),
+-      menuScreen: document.getElementById("menuScreen"),
+-      menuUser: document.getElementById("menuUser"),
+-      menuStatus: document.getElementById("menuStatus"),
+-      roomNameInput: document.getElementById("roomNameInput"),
+-      roomModeSelect: document.getElementById("roomModeSelect"),
+-      joinCodeInput: document.getElementById("joinCodeInput"),
+-      savedRooms: document.getElementById("savedRooms"),
+-      findFriendInput: document.getElementById("findFriendInput"),
+-      friendStatus: document.getElementById("friendStatus"),
+-      friendList: document.getElementById("friendList"),
+-      incomingRequests: document.getElementById("incomingRequests"),
+-      chatScreen: document.getElementById("chatScreen"),
+-      roomLabel: document.getElementById("roomLabel"),
+-      roomCodeLabel: document.getElementById("roomCodeLabel"),
+-      memberList: document.getElementById("memberList"),
+-      sidebarStatus: document.getElementById("sidebarStatus"),
+-      hostControls: document.getElementById("hostControls"),
+-      chatBox: document.getElementById("chatBox"),
+-      messageInput: document.getElementById("messageInput"),
+-      typingIndicator: document.getElementById("typingIndicator"),
+-      chatStatus: document.getElementById("chatStatus"),
+-      adminOpenBtn: document.getElementById("adminOpenBtn"),
+-      adminModal: document.getElementById("adminModal"),
+-      adminUser: document.getElementById("adminUser"),
+-      adminPass: document.getElementById("adminPass"),
+-      adminLoginBtn: document.getElementById("adminLoginBtn"),
+-      adminCloseBtn: document.getElementById("adminCloseBtn"),
+-      adminLoginPanel: document.getElementById("adminLoginPanel"),
+-      adminPanel: document.getElementById("adminPanel"),
+-      adminLoginStatus: document.getElementById("adminLoginStatus"),
+-      adminUsers: document.getElementById("adminUsers")
++    const el = {
++      authView: document.getElementById('authView'),
++      appView: document.getElementById('appView'),
++      signupBox: document.getElementById('signupBox'),
++      loginBox: document.getElementById('loginBox'),
++      suUser: document.getElementById('suUser'),
++      suPass: document.getElementById('suPass'), suTogglePass: document.getElementById('suTogglePass'),
++      suStatus: document.getElementById('suStatus'), liUser: document.getElementById('liUser'),
++      liPass: document.getElementById('liPass'), liTogglePass: document.getElementById('liTogglePass'),
++      liStatus: document.getElementById('liStatus'),
++      meAvatar: document.getElementById('meAvatar'), meAvatarText: document.getElementById('meAvatarText'), meName: document.getElementById('meName'), mePresence: document.getElementById('mePresence'), hostCrown: document.getElementById('hostCrown'),
++      adminTick: document.getElementById('adminTick'), adminBadge: document.getElementById('adminBadge'),
++      myFriendCode: document.getElementById('myFriendCode'), copyFriendCodeBtn: document.getElementById('copyFriendCodeBtn'),
++      friendSearch: document.getElementById('friendSearch'), friendStatus: document.getElementById('friendStatus'), friendsList: document.getElementById('friendsList'),
++      requestList: document.getElementById('requestList'), inviteList: document.getElementById('inviteList'),
++      roomName: document.getElementById('roomName'), roomDesc: document.getElementById('roomDesc'), roomVisibility: document.getElementById('roomVisibility'), roomMax: document.getElementById('roomMax'), roomStatus: document.getElementById('roomStatus'),
++      joinCode: document.getElementById('joinCode'), copyJoinCodeBtn: document.getElementById('copyJoinCodeBtn'), roomList: document.getElementById('roomList'),
++      activeRoomName: document.getElementById('activeRoomName'), activeRoomMeta: document.getElementById('activeRoomMeta'),
++      chat: document.getElementById('chat'), msgInput: document.getElementById('msgInput'), composeStatus: document.getElementById('composeStatus'), replyBar: document.getElementById('replyBar'),
++      memberPill: document.getElementById('memberPill'), typingPill: document.getElementById('typingPill'), activityPill: document.getElementById('activityPill'),
++      memberListBar: document.getElementById('memberListBar'),
++      leaveBtn: document.getElementById('leaveBtn'), closeBtn: document.getElementById('closeBtn'),
++      autoScroll: document.getElementById('autoScroll'), jumpLatest: document.getElementById('jumpLatest'), msgSearch: document.getElementById('msgSearch'), mediaInput: document.getElementById('mediaInput'), dropZone: document.getElementById('dropZone'),
++      modalWrap: document.getElementById('modalWrap'), modalTitle: document.getElementById('modalTitle'), modalBody: document.getElementById('modalBody'), modalActions: document.getElementById('modalActions'), modalDismiss: document.getElementById('modalDismiss')
+     };
+ 
+-    function persistState() {
+-      localStorage.setItem("chat_users", JSON.stringify(appState.usersDB));
+-      localStorage.setItem("chat_banned_users", JSON.stringify(appState.bannedDB));
+-      localStorage.setItem("chat_friends", JSON.stringify(appState.friendsDB));
+-      localStorage.setItem("chat_friend_requests", JSON.stringify(appState.friendRequestsDB));
+-      localStorage.setItem("chat_room_modes", JSON.stringify(appState.roomModes));
+-    }
+-
+-    function getFriends(username = appState.currentUser?.username) {
+-      return appState.friendsDB[username] || [];
+-    }
+-
+-    function hashPassword(pass) {
+-      return btoa(unescape(encodeURIComponent(pass))).split("").reverse().join("");
+-    }
+-
+-    function passwordScore(pass) {
+-      let score = 0;
+-      if (pass.length >= 8) score++;
+-      if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+-      if (/\d/.test(pass)) score++;
+-      if (/[^A-Za-z0-9]/.test(pass)) score++;
+-      return score;
+-    }
++    const qs = (s) => document.querySelector(s);
++    const qsa = (s) => Array.from(document.querySelectorAll(s));
++    const setStatus = (node, msg, err = false) => { node.textContent = msg || ''; node.style.color = err ? '#fecaca' : '#9db0cc'; };
+ 
+-    function renderPasswordStrength() {
+-      const p = els.signupPass.value || "";
+-      const score = passwordScore(p);
+-      const labels = ["Very weak", "Weak", "Okay", "Strong", "Very strong"];
+-      els.passwordStrength.textContent = `Password strength: ${labels[score]}`;
++    function showAuth(login = false) {
++      el.authView.classList.remove('hidden');
++      el.appView.classList.add('hidden');
++      el.signupBox.classList.toggle('hidden', login);
++      el.loginBox.classList.toggle('hidden', !login);
+     }
+ 
+-    function switchAuth(showLogin) {
+-      els.signupPanel.classList.toggle("hidden", showLogin);
+-      els.loginPanel.classList.toggle("hidden", !showLogin);
++    function showApp() {
++      el.authView.classList.add('hidden');
++      el.appView.classList.remove('hidden');
++      el.meName.textContent = state.me.username;
++      el.meAvatarText.textContent = state.me.username.slice(0,2).toUpperCase();
++      el.mePresence.textContent = 'online';
++      el.adminTick.classList.toggle('hidden', !state.adminMode);
++      el.adminBadge.classList.add('hidden');
++      el.myFriendCode.textContent = `Friend code: ${state.me.friend_code || friendCodeFromUsername(state.me.username)}`;
+     }
+ 
+-    function showScreen(screen) {
+-      els.authScreen.classList.add("hidden");
+-      els.menuScreen.classList.add("hidden");
+-      els.chatScreen.classList.add("hidden");
+-      screen.classList.remove("hidden");
++    async function sha256(text) {
++      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
++      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+     }
+ 
+-    function setStatus(el, message, isError = false) {
+-      el.textContent = message || "";
+-      el.style.color = isError ? "#fecaca" : "#cbd5e1";
++    function friendCodeFromUsername(username) {
++      const head = username.slice(0, 4).toUpperCase().padEnd(4, 'X');
++      const seed = [...username].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
++      const tail = (seed * 733 + username.length * 97).toString(36).toUpperCase().slice(0, 4).padEnd(4, '0');
++      return `${head}-${tail}`;
+     }
+ 
+-    function generateCode() {
+-      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+-      let out = "";
+-      for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+-      return out;
++    function normalizeFriendCode(code) {
++      const clean = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
++      if (clean.length <= 4) return clean;
++      return `${clean.slice(0, 4)}-${clean.slice(4, 8)}`;
+     }
+-
+-    function getSavedRooms() {
+-      return JSON.parse(localStorage.getItem(savedRoomsKey) || "[]");
++    function normalizeRoomCode(code) {
++      return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+     }
+ 
+-    function saveRoomLocally(roomCode, roomName) {
+-      const rooms = getSavedRooms();
+-      const filtered = rooms.filter(r => r.room_code !== roomCode);
+-      filtered.unshift({ room_code: roomCode, room_name: roomName, last_seen: Date.now() });
+-      localStorage.setItem(savedRoomsKey, JSON.stringify(filtered.slice(0, 12)));
+-      renderSavedRooms();
++    function saveMutedRooms() {
++      localStorage.setItem('freshchat_muted_rooms', JSON.stringify([...state.mutedRooms]));
+     }
+ 
+-    function renderSavedRooms() {
+-      const rooms = getSavedRooms();
+-      if (!rooms.length) {
+-        els.savedRooms.innerHTML = "<p class='hint'>No rooms yet.</p>";
+-        return;
+-      }
+-      els.savedRooms.innerHTML = "";
+-      rooms.forEach((r) => {
+-        const div = document.createElement("div");
+-        div.className = "saved-room";
+-        div.innerHTML = `<span>${r.room_name || "Room"} (${r.room_code})</span>`;
+-        const b = document.createElement("button");
+-        b.className = "small-btn";
+-        b.textContent = "Join";
+-        b.onclick = () => joinRoom(r.room_code);
+-        div.appendChild(b);
+-        els.savedRooms.appendChild(div);
++    function beep() {
++      try {
++        const ctx = new (window.AudioContext || window.webkitAudioContext)();
++        const osc = ctx.createOscillator();
++        const gain = ctx.createGain();
++        osc.type = 'sine';
++        osc.frequency.value = 740;
++        gain.gain.setValueAtTime(0.001, ctx.currentTime);
++        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
++        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.19);
++        osc.connect(gain);
++        gain.connect(ctx.destination);
++        osc.start();
++        osc.stop(ctx.currentTime + 0.2);
++      } catch {}
++    }
++
++    function enqueueModal(modal) {
++      state.modalQueue.push(modal);
++      processModalQueue();
++    }
++
++    function processModalQueue() {
++      if (state.modalOpen || !state.modalQueue.length) return;
++      state.modalOpen = true;
++      const modal = state.modalQueue.shift();
++      el.modalTitle.textContent = modal.title || 'Notification';
++      el.modalBody.innerHTML = modal.body || '';
++      el.modalActions.innerHTML = '';
++      (modal.actions || []).forEach((action) => {
++        const b = document.createElement('button');
++        b.className = action.className || 'soft';
++        b.textContent = action.label;
++        b.onclick = async () => {
++          await action.onClick?.();
++          closeModal();
++        };
++        el.modalActions.appendChild(b);
+       });
++      el.modalWrap.classList.remove('hidden');
++      beep();
++    }
++
++    function closeModal() {
++      el.modalWrap.classList.add('hidden');
++      state.modalOpen = false;
++      processModalQueue();
++    }
++
++    async function wipeCloudDataOnce() {
++      if (localStorage.getItem('fresh_cloud_reset_v2')) return;
++      const wipes = [
++        ['messages', 'id', 0],
++        ['members', 'id', 0],
++        ['room_invites', 'id', 0],
++        ['friend_requests', 'id', 0],
++        ['friends', 'id', 0],
++        ['room_access', 'room_code', ''],
++        ['rooms', 'room_code', ''],
++        ['users', 'username', '']
++      ];
++      for (const [table, key, base] of wipes) {
++        let query = sb.from(table).delete();
++        if (typeof base === 'number') query = query.gte(key, base);
++        else query = query.neq(key, base);
++        await query;
++      }
++      localStorage.setItem('fresh_cloud_reset_v2', '1');
+     }
+ 
+-    async function fetchFriendsPresence() {
+-      const friends = getFriends();
+-      if (!friends.length) return {};
+-      const { data } = await supabaseClient
+-        .from("members")
+-        .select("username, room_code, is_online, joined_at")
+-        .in("username", friends)
+-        .order("joined_at", { ascending: false });
+-
+-      const latest = {};
+-      (data || []).forEach((row) => {
+-        if (!latest[row.username]) latest[row.username] = row;
+-      });
+-      return latest;
+-    }
+-
+-    async function renderFriends() {
+-      const me = appState.currentUser?.username;
+-      if (!me) return;
+-
+-      const friends = getFriends(me);
+-      const incoming = appState.friendRequestsDB[me] || [];
+-      const presence = await fetchFriendsPresence();
+-
+-      els.friendList.innerHTML = friends.length ? "" : "<p class='hint'>No friends added yet.</p>";
+-      friends.forEach((friendName) => {
+-        const row = document.createElement("div");
+-        row.className = "friend-row";
+-
+-        const item = presence[friendName];
+-        const isOnline = !!item?.is_online;
+-        const roomCode = item?.room_code;
+-        const dotClass = isOnline ? "online" : "offline";
+-        row.innerHTML = `<div><span class="dot ${dotClass}"></span><strong>${friendName}</strong><div class="hint">${isOnline ? "Online" : "Offline"}</div></div>`;
+-
+-        const actions = document.createElement("div");
+-        if (isOnline && roomCode) {
+-          const joinBtn = document.createElement("button");
+-          joinBtn.className = "small-btn";
+-          joinBtn.textContent = "Join their room";
+-          joinBtn.onclick = () => joinFriendRoom(roomCode, friendName);
+-          actions.appendChild(joinBtn);
+-        }
+-        row.appendChild(actions);
+-        els.friendList.appendChild(row);
+-      });
+-
+-      els.incomingRequests.innerHTML = incoming.length ? "" : "<p class='hint'>No requests.</p>";
+-      incoming.forEach((sender) => {
+-        const row = document.createElement("div");
+-        row.className = "friend-row";
+-        row.innerHTML = `<strong>${sender}</strong>`;
+-        const actions = document.createElement("div");
+-
+-        const acceptBtn = document.createElement("button");
+-        acceptBtn.className = "small-btn success";
+-        acceptBtn.textContent = "Accept";
+-        acceptBtn.onclick = () => acceptFriendRequest(sender);
+-
+-        const declineBtn = document.createElement("button");
+-        declineBtn.className = "small-btn";
+-        declineBtn.textContent = "Decline";
+-        declineBtn.onclick = () => declineFriendRequest(sender);
+-
+-        actions.appendChild(acceptBtn);
+-        actions.appendChild(declineBtn);
+-        row.appendChild(actions);
+-        els.incomingRequests.appendChild(row);
+-      });
++    function roomCode() {
++      const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
++      return [...Array(8)].map(() => a[Math.floor(Math.random()*a.length)]).join('');
+     }
+ 
+-    function sendFriendRequest() {
+-      const me = appState.currentUser?.username;
+-      const target = els.findFriendInput.value.trim();
+-      if (!me || !target) return setStatus(els.friendStatus, "Enter a username.", true);
+-      if (target === me) return setStatus(els.friendStatus, "You cannot add yourself.", true);
+-
+-      if (!appState.usersDB[target]) {
+-        return setStatus(els.friendStatus, "User not found.", true);
+-      }
+-
+-      const mine = new Set(getFriends(me));
+-      if (mine.has(target)) return setStatus(els.friendStatus, "Already friends.", true);
+-
+-      const list = appState.friendRequestsDB[target] || [];
+-      if (!list.includes(me)) list.push(me);
+-      appState.friendRequestsDB[target] = list;
+-      persistState();
+-      els.findFriendInput.value = "";
+-      setStatus(els.friendStatus, `Request sent to ${target}.`);
++    function messagePayload(body, extra = {}) {
++      return JSON.stringify({ body, edited_at: null, deleted: false, reactions: {}, reply_to: null, ...extra });
+     }
+ 
+-    function acceptFriendRequest(sender) {
+-      const me = appState.currentUser?.username;
+-      const mine = new Set(getFriends(me));
+-      mine.add(sender);
+-      appState.friendsDB[me] = [...mine];
+-
+-      const theirs = new Set(getFriends(sender));
+-      theirs.add(me);
+-      appState.friendsDB[sender] = [...theirs];
+-
+-      appState.friendRequestsDB[me] = (appState.friendRequestsDB[me] || []).filter((u) => u !== sender);
+-      persistState();
+-      renderFriends();
++    function parseMessage(raw) {
++      try { const p = JSON.parse(raw.message); return { ...raw, payload: p }; }
++      catch { return { ...raw, payload: { body: raw.message, deleted: false, reactions: {}, reply_to: null } }; }
+     }
+ 
+-    function declineFriendRequest(sender) {
+-      const me = appState.currentUser?.username;
+-      appState.friendRequestsDB[me] = (appState.friendRequestsDB[me] || []).filter((u) => u !== sender);
+-      persistState();
++    function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
++
++    async function refreshFriends() {
++      const me = state.me.username;
++      const { data: links } = await sb.from('friends').select('*').or(`user_a.eq.${me},user_b.eq.${me}`);
++      const names = (links || []).map((r) => r.user_a === me ? r.user_b : r.user_a);
++      state.friends = names;
+       renderFriends();
+-    }
+ 
+-    async function joinFriendRoom(roomCode, friendName) {
+-      const mode = appState.roomModes[roomCode] || "code";
+-      const isFriend = getFriends().includes(friendName);
+-      if (mode === "public" && isFriend) return joinRoom(roomCode);
+-      setStatus(els.friendStatus, "This room is code-only.", true);
++      let reqQuery = await sb.from('friend_requests').select('*').eq('to_user', me).eq('status', 'pending').order('created_at', { ascending: false });
++      if (reqQuery.error) reqQuery = await sb.from('friend_requests').select('*').eq('to_user', me).eq('status', 'pending');
++      state.reqs = reqQuery.data || [];
++      for (const req of state.reqs) {
++        if (!state.lastReqIds.has(req.id)) {
++          enqueueModal({
++            title: 'Friend request',
++            body: `<strong>@${req.from_user}</strong> sent you a friend request.`,
++            actions: [
++              { label: 'Accept', className: 'success', onClick: async () => acceptFriendRequest(req.id) },
++              { label: 'Decline', className: 'danger', onClick: async () => rejectFriendRequest(req.id) }
++            ]
++          });
++        }
++      }
++      state.lastReqIds = new Set(state.reqs.map((r) => r.id));
++      renderRequests();
++    }
++
++    async function refreshInvites() {
++      if (!state.me) return;
++      let inviteQuery = await sb.from('room_invites').select('*').eq('to_username', state.me.username).eq('status', 'pending').order('created_at', { ascending: false });
++      if (inviteQuery.error) inviteQuery = await sb.from('room_invites').select('*').eq('to_username', state.me.username).eq('status', 'pending');
++      state.invites = inviteQuery.data || [];
++      for (const inv of state.invites) {
++        if (!state.lastInviteIds.has(inv.id)) {
++          enqueueModal({
++            title: 'Room invite',
++            body: `You were invited to <strong>${inv.room_code}</strong> by @${inv.from_username}.`,
++            actions: [
++              { label: 'Accept', className: 'success', onClick: async () => acceptInviteById(inv.id) },
++              { label: 'Decline', className: 'danger', onClick: async () => rejectInviteById(inv.id) }
++            ]
++          });
++        }
++      }
++      state.lastInviteIds = new Set(state.invites.map((r) => r.id));
++      renderInvites();
+     }
+ 
+-    async function renderAdminPanel() {
+-      const names = Object.keys(appState.usersDB).sort((a, b) => a.localeCompare(b));
+-      const { data } = await supabaseClient.from("members").select("username, is_online, joined_at").order("joined_at", { ascending: false });
+-      const statusMap = {};
+-      (data || []).forEach((m) => {
+-        if (!(m.username in statusMap)) statusMap[m.username] = !!m.is_online;
+-      });
++    async function refreshRooms() {
++      if (!state.me) return;
++      const me = state.me.username;
++      const [{ data: own }, { data: memberRows }, { data: inviteRows }] = await Promise.all([
++        sb.from('rooms').select('*').eq('is_active', true).eq('host_username', me).order('created_at', { ascending: false }),
++        sb.from('members').select('room_code').eq('username', me),
++        sb.from('room_invites').select('room_code').eq('to_username', me).in('status', ['pending', 'accepted'])
++      ]);
+ 
+-      els.adminUsers.innerHTML = "";
+-      names.forEach((name) => {
+-        const row = document.createElement("div");
+-        row.className = "admin-row";
+-        const banned = !!appState.bannedDB[name];
+-        row.innerHTML = `<div><strong>${name}</strong><div class='hint'>${statusMap[name] ? "Online" : "Offline"} • password hash: ${appState.usersDB[name]}</div></div>`;
+-        const controls = document.createElement("div");
+-        const banBtn = document.createElement("button");
+-        banBtn.className = "small-btn danger";
+-        banBtn.textContent = banned ? "Unban" : "Ban";
+-        banBtn.onclick = () => {
+-          appState.bannedDB[name] = !banned;
+-          if (!appState.bannedDB[name]) delete appState.bannedDB[name];
+-          persistState();
+-          renderAdminPanel();
+-        };
+-        controls.appendChild(banBtn);
+-        row.appendChild(controls);
+-        els.adminUsers.appendChild(row);
+-      });
++      const codes = [...new Set([...(memberRows || []).map(r => r.room_code), ...(inviteRows || []).map(r => r.room_code)])];
++      let joined = [];
++      if (codes.length) {
++        const { data } = await sb.from('rooms').select('*').in('room_code', codes).eq('is_active', true);
++        joined = data || [];
++      }
++      const merged = [...(own || []), ...joined.filter(r => r.host_username !== me)];
++      const allRooms = [...new Map(merged.map((r) => [r.room_code, r])).values()].sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
++      const allCodes = allRooms.map((r) => r.room_code);
++      let visMap = {};
++      if (allCodes.length) {
++        const { data: accessRows } = await sb.from('room_access').select('room_code,visibility').in('room_code', allCodes);
++        visMap = Object.fromEntries((accessRows || []).map((a) => [a.room_code, a.visibility]));
++      }
++      state.roomList = allRooms.map((r) => ({ ...r, visibility: visMap[r.room_code] || 'private' }));
++      state.memberRoomCodes = new Set(codes);
++      renderRoomList();
+     }
+ 
+-    function renderMembers() {
+-      els.memberList.innerHTML = "";
+-      appState.members
+-        .filter(m => m.is_online)
+-        .forEach((m) => {
+-          const row = document.createElement("div");
+-          row.className = "member" + (m.username === appState.currentUser?.username ? " current" : "");
+-
+-          const label = document.createElement("div");
+-          label.innerHTML = `<strong>${m.username}</strong>`;
+-
+-          const right = document.createElement("div");
+-          if (m.is_host) {
+-            const hostBadge = document.createElement("span");
+-            hostBadge.className = "badge host";
+-            hostBadge.textContent = "Host";
+-            right.appendChild(hostBadge);
+-          }
+-
+-          const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+-          if (isRoomHost && m.username !== appState.currentUser?.username) {
+-            const kickBtn = document.createElement("button");
+-            kickBtn.className = "small-btn danger";
+-            kickBtn.textContent = "Kick";
+-            kickBtn.onclick = () => kickMember(m.username);
+-            right.appendChild(kickBtn);
+-          }
+-
+-          row.appendChild(label);
+-          row.appendChild(right);
+-          els.memberList.appendChild(row);
+-        });
+-      setStatus(els.sidebarStatus, `${appState.members.filter(m => m.is_online).length} online`);
+-    }
+-
+-    function renderMessages() {
+-      els.chatBox.innerHTML = "";
+-      appState.messages.forEach((m) => {
+-        const wrap = document.createElement("div");
+-        const isSelf = m.username === appState.currentUser?.username;
+-        const isSystem = m.message_type === "system";
+-        wrap.className = `msg${isSelf ? " self" : ""}${isSystem ? " system" : ""}`;
+-
+-        const ts = new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+-        const meta = document.createElement("div");
+-        meta.className = "meta";
+-        meta.textContent = isSystem ? ts : `${m.username} • ${ts}`;
+-
+-        const bubble = document.createElement("div");
+-        bubble.className = "bubble";
+-        bubble.textContent = m.message;
+-
+-        wrap.appendChild(meta);
+-        wrap.appendChild(bubble);
+-
+-        const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+-        if (isRoomHost && !isSystem) {
+-          const del = document.createElement("button");
+-          del.className = "small-btn danger";
+-          del.textContent = "Delete";
+-          del.onclick = () => deleteMessage(m.id);
+-          wrap.appendChild(del);
+-        }
+-
+-        els.chatBox.appendChild(wrap);
+-      });
+-      els.chatBox.scrollTop = els.chatBox.scrollHeight;
++    function renderFriends() {
++      if (!state.friends.length) {
++        el.friendsList.innerHTML = '<div class="tiny">No accepted friends yet.</div>';
++        return;
++      }
++      el.friendsList.innerHTML = state.friends.map((u) => `
++        <div class="row-item">
++          <strong>@${u}</strong>
++          <div style="display:flex; gap:6px; margin-top:6px;">
++            <button data-dm="${u}" class="soft" style="width:auto;">Message</button>
++            ${state.room ? `<button data-invite-user="${u}" class="soft" style="width:auto;">Invite</button>` : ''}
++          </div>
++        </div>
++      `).join('');
+     }
+ 
+-    function updateTypingIndicator() {
+-      const list = [...appState.typingUsers];
+-      if (!list.length) {
+-        els.typingIndicator.textContent = "";
+-      } else {
+-        els.typingIndicator.textContent = `${list.join(", ")} typing...`;
++    function renderRequests() {
++      if (!state.reqs.length) {
++        el.requestList.innerHTML = '<div class="tiny">No incoming requests.</div>';
++        return;
+       }
++      el.requestList.innerHTML = state.reqs.map((r) => `
++        <div class="row-item">
++          <div><strong>@${r.from_user}</strong> sent a request</div>
++          <div style="display:flex; gap:6px; margin-top:6px;">
++            <button data-accept="${r.id}" class="success" style="width:auto;">Accept</button>
++            <button data-reject="${r.id}" class="danger" style="width:auto;">Reject</button>
++          </div>
++        </div>
++      `).join('');
+     }
+ 
+-    async function sendDbMessage(text, type = "text", username = appState.currentUser.username) {
+-      const { error } = await supabaseClient.from("messages").insert([{ username, room: appState.room, message: text, message_type: type }]);
+-      if (error) throw error;
++    function renderInvites() {
++      if (!state.invites.length) {
++        el.inviteList.innerHTML = '<div class="tiny">No room invites.</div>';
++        return;
++      }
++      el.inviteList.innerHTML = state.invites.map((i) => `
++        <div class="row-item">
++          <div>Room <strong>${i.room_code}</strong> invite from @${i.from_username}</div>
++          <div style="display:flex; gap:6px; margin-top:6px;">
++            <button data-invite-accept="${i.id}" class="success" style="width:auto;">Accept</button>
++            <button data-invite-reject="${i.id}" class="danger" style="width:auto;">Reject</button>
++          </div>
++        </div>
++      `).join('');
+     }
+ 
+-    async function createRoom() {
+-      const roomName = els.roomNameInput.value.trim();
+-      if (!roomName) return setStatus(els.menuStatus, "Room name required.", true);
+-      if (appState.bannedDB[appState.currentUser.username]) return setStatus(els.menuStatus, "You are banned.", true);
+-
+-      setStatus(els.menuStatus, "Creating room...");
+-      let roomCode = generateCode();
+-      for (let i = 0; i < 5; i++) {
+-        const { data } = await supabaseClient.from("rooms").select("room_code").eq("room_code", roomCode).maybeSingle();
+-        if (!data) break;
+-        roomCode = generateCode();
++    function renderRoomList() {
++      if (!state.roomList.length) {
++        el.roomList.innerHTML = '<div class="tiny">No rooms available by your privacy scope.</div>';
++        return;
+       }
+-
+-      const payload = {
+-        room_code: roomCode,
+-        room_name: roomName,
+-        host_username: appState.currentUser.username,
+-        is_active: true
+-      };
+-
+-      const { error } = await supabaseClient.from("rooms").insert([payload]);
+-      if (error) return setStatus(els.menuStatus, `Failed to create room: ${error.message}`, true);
+-
+-      appState.roomModes[roomCode] = els.roomModeSelect.value;
+-      persistState();
+-
+-      await enterRoom(roomCode, true);
++      el.roomList.innerHTML = state.roomList.map((r) => `
++        <div class="row-item">
++          <div><strong>${r.room_name}</strong> <span class="tiny">(${r.room_code})</span></div>
++          <div class="tiny">host: @${r.host_username} • ${new Date(r.created_at).toLocaleDateString()} ${r.visibility ? `• ${r.visibility}` : ''}</div>
++          <div style="display:flex; gap:6px; margin-top:6px;">
++            <button data-join-room="${r.room_code}" class="primary" style="width:auto;">Join</button>
++            <button data-copy-room="${r.room_code}" class="soft" style="width:auto;">Copy code</button>
++            <button data-mute-room="${r.room_code}" class="soft" style="width:auto;">${state.mutedRooms.has(r.room_code) ? 'Unmute' : 'Mute'}</button>
++            <button data-clear-room="${r.room_code}" class="ghost" style="width:auto;">${r.host_username === state.me.username ? 'Delete room' : 'Hide'}</button>
++          </div>
++        </div>
++      `).join('');
++    }
++
++    function decorateMentions(text) {
++      return text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#93c5fd;">@$1</span>');
++    }
++
++    function renderChat() {
++      const query = el.msgSearch.value.trim().toLowerCase();
++      const rows = state.messages.filter((m) => !query || JSON.stringify(m.payload).toLowerCase().includes(query));
++      el.chat.innerHTML = rows.map((m) => {
++        const self = m.username === state.me.username;
++        const sys = m.message_type === 'system';
++        const deleted = !!m.payload.deleted;
++        const body = deleted ? '<i>Message deleted</i>' : decorateMentions((m.payload.body || '').replace(/</g,'&lt;'));
++        const reply = m.payload.reply_to ? `<div class="quoted">Replying to @${m.payload.reply_to.username}: ${(m.payload.reply_to.body || '').slice(0,80)}</div>` : '';
++        const media = renderMediaInner(m.payload.media);
++        const reacts = Object.entries(m.payload.reactions || {}).map(([emo, users]) => `<span class="pill">${emo} ${users.length}</span>`).join('');
++        const actions = sys || deleted ? '' : `
++          <div class="actions">
++            <button data-reply="${m.id}">Reply</button>
++            <button data-react="${m.id}:👍">👍</button>
++            <button data-react="${m.id}:❤️">❤️</button>
++            <button data-react="${m.id}:😂">😂</button>
++            <button data-copy="${m.id}">Copy</button>
++            ${(self || isHost()) ? `<button data-delete="${m.id}">Delete</button>` : ''}
++            ${self ? `<button data-edit="${m.id}">Edit</button>` : ''}
++          </div>
++        `;
++        return `
++          <div class="msg ${self ? 'self' : ''} ${sys ? 'system' : ''}" id="m-${m.id}">
++            <div class="meta">${sys ? 'system' : '@' + m.username} • ${fmtTime(m.created_at)} ${m.payload.edited_at ? '• edited' : ''}</div>
++            <div class="bubble">${reply}${body}${media ? `<div>${media}</div>` : ''}</div>
++            <div>${reacts}</div>
++            ${actions}
++          </div>
++        `;
++      }).join('');
++      if (el.autoScroll.checked) el.chat.scrollTop = el.chat.scrollHeight;
+     }
+ 
+-    async function joinRoom(codeArg) {
+-      const code = (codeArg || els.joinCodeInput.value).trim().toUpperCase();
+-      if (!code) return setStatus(els.menuStatus, "Enter room code.", true);
+-      if (appState.bannedDB[appState.currentUser.username]) return setStatus(els.menuStatus, "You are banned.", true);
+-
+-      setStatus(els.menuStatus, "Joining room...");
+-      const { data: roomData, error: roomError } = await supabaseClient
+-        .from("rooms")
+-        .select("*")
+-        .eq("room_code", code)
+-        .eq("is_active", true)
+-        .maybeSingle();
++    function renderMediaInner(media) {
++      if (!media?.data) return '';
++      if (media.kind === 'image') return `<img class="media" src="${media.data}" alt="${media.name || 'image'}" />`;
++      if (media.kind === 'video') return `<video class="media" controls src="${media.data}"></video>`;
++      return `<a href="${media.data}" download="${media.name || 'file'}" style="color:#93c5fd;">📎 ${media.name || 'file'}</a>`;
++    }
+ 
+-      if (roomError || !roomData) return setStatus(els.menuStatus, "Room not found or closed.", true);
+-      await enterRoom(code, false, roomData);
++    async function sendSystem(room, body) {
++      await sb.from('messages').insert({ username: 'system', room, message: messagePayload(body), message_type: 'system' });
+     }
+ 
+-    async function enterRoom(code, created = false, roomData = null) {
+-      appState.room = code;
+-      const { data: room } = roomData
+-        ? { data: roomData }
+-        : await supabaseClient.from("rooms").select("*").eq("room_code", code).maybeSingle();
+-      appState.roomMeta = room;
++    async function canJoinRoom(roomRow) {
++      if (!roomRow || !roomRow.is_active) return { ok: false, reason: 'Room closed.' };
++      const me = state.me.username;
++      const [{ data: member }, { data: accessRows }, { data: invite }, { data: kick }] = await Promise.all([
++        sb.from('members').select('id').eq('room_code', roomRow.room_code).eq('username', me).maybeSingle(),
++        sb.from('room_access').select('*').eq('room_code', roomRow.room_code),
++        sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).in('status', ['pending','accepted']).maybeSingle(),
++        sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).eq('status', 'kicked').maybeSingle()
++      ]);
++      if (kick?.data) return { ok: false, reason: 'You were kicked from this room.' };
++      if (member?.data) return { ok: true };
++      if (roomRow.host_username === me) return { ok: true };
+ 
+-      const isHost = room.host_username === appState.currentUser.username;
+-      const { data: existingMember } = await supabaseClient
+-        .from("members")
+-        .select("id")
+-        .eq("room_code", code)
+-        .eq("username", appState.currentUser.username)
+-        .maybeSingle();
++      const access = accessRows?.[0] || { visibility: 'private', password_hash: null };
+ 
+-      if (existingMember?.id) {
+-        await supabaseClient.from("members").update({ is_online: true, is_host: isHost }).eq("id", existingMember.id);
+-      } else {
+-        await supabaseClient.from("members").insert([{ room_code: code, username: appState.currentUser.username, is_host: isHost, is_online: true }]);
++      if (access.visibility === 'invite') {
++        if (!invite?.data) return { ok: false, reason: 'Invite required.' };
++        return { ok: true };
+       }
+-
+-      if (created) {
+-        await sendDbMessage(`${appState.currentUser.username} created the room`, "system");
+-      } else {
+-        await sendDbMessage(`${appState.currentUser.username} joined the room`, "system");
++      if (access.visibility === 'public') {
++        return { ok: true };
+       }
+ 
+-      saveRoomLocally(code, room.room_name);
+-      await loadRoomData();
+-      subscribeToRealtime();
++      if (access.visibility === 'friends') {
++        const [{ data: hostMember }, { data: frA }, { data: frB }] = await Promise.all([
++          sb.from('members').select('is_online').eq('room_code', roomRow.room_code).eq('username', roomRow.host_username).maybeSingle(),
++          sb.from('friends').select('id').eq('user_a', me).eq('user_b', roomRow.host_username).maybeSingle(),
++          sb.from('friends').select('id').eq('user_a', roomRow.host_username).eq('user_b', me).maybeSingle()
++        ]);
++        const isFriend = !!(frA?.data || frB?.data);
++        if (invite?.data) return { ok: true };
++        if (!(isFriend && hostMember?.data?.is_online)) return { ok: false, reason: 'Host must be online and you must be friends.' };
++        return { ok: true };
++      }
+ 
+-      els.roomLabel.textContent = room.room_name;
+-      els.roomCodeLabel.textContent = code;
+-      els.hostControls.classList.toggle("hidden", !isHost);
+-      showScreen(els.chatScreen);
+-      setStatus(els.chatStatus, "Connected");
++      if (access.visibility === 'private' && !invite?.data) {
++        return { ok: false, reason: 'Private room. Invite required.' };
++      }
++      return { ok: true };
+     }
+ 
+-    async function loadRoomData() {
+-      const [membersRes, messagesRes] = await Promise.all([
+-        supabaseClient.from("members").select("*").eq("room_code", appState.room).order("joined_at", { ascending: true }),
+-        supabaseClient.from("messages").select("*").eq("room", appState.room).order("created_at", { ascending: true })
+-      ]);
+-      appState.members = membersRes.data || [];
+-      appState.messages = messagesRes.data || [];
+-      renderMembers();
+-      renderMessages();
+-    }
++    async function subscribeRoom(roomCode) {
++      unsubscribeAll();
+ 
+-    function cleanupSubscriptions() {
+-      [appState.messagesSubscription, appState.membersSubscription, appState.roomSubscription, appState.typingChannel].forEach((sub) => {
+-        if (sub) supabaseClient.removeChannel(sub);
+-      });
+-      appState.messagesSubscription = null;
+-      appState.membersSubscription = null;
+-      appState.roomSubscription = null;
+-      appState.typingChannel = null;
+-      appState.typingUsers.clear();
+-      updateTypingIndicator();
+-    }
+-
+-    function subscribeToRealtime() {
+-      cleanupSubscriptions();
+-
+-      appState.messagesSubscription = supabaseClient
+-        .channel(`messages-${appState.room}`)
+-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `room=eq.${appState.room}` }, payload => {
+-          appState.messages.push(payload.new);
+-          renderMessages();
+-        })
+-        .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages", filter: `room=eq.${appState.room}` }, payload => {
+-          appState.messages = appState.messages.filter(m => m.id !== payload.old.id);
+-          renderMessages();
+-        })
++      const msgSub = sb
++        .channel(`msgs:${roomCode}`)
++        .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room=eq.${roomCode}` }, async () => loadMessages(roomCode))
+         .subscribe();
+ 
+-      appState.membersSubscription = supabaseClient
+-        .channel(`members-${appState.room}`)
+-        .on("postgres_changes", { event: "*", schema: "public", table: "members", filter: `room_code=eq.${appState.room}` }, async () => {
+-          const { data } = await supabaseClient.from("members").select("*").eq("room_code", appState.room);
+-          appState.members = data || [];
+-          renderMembers();
+-        })
++      const memSub = sb
++        .channel(`members:${roomCode}`)
++        .on('postgres_changes', { event: '*', schema: 'public', table: 'members', filter: `room_code=eq.${roomCode}` }, async () => loadMembers(roomCode))
+         .subscribe();
+ 
+-      appState.roomSubscription = supabaseClient
+-        .channel(`room-${appState.room}`)
+-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `room_code=eq.${appState.room}` }, payload => {
+-          appState.roomMeta = payload.new;
+-          const stillActive = payload.new.is_active;
+-          if (!stillActive) {
+-            setStatus(els.chatStatus, "Room closed by host.", true);
+-            setTimeout(() => leaveRoom(false), 1200);
++      const roomSub = sb
++        .channel(`room:${roomCode}`)
++        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `room_code=eq.${roomCode}` }, async (payload) => {
++          if (payload.new.is_active === false) {
++            await sendSystem(roomCode, 'Room closed by host.');
++            alert('Room was closed.');
++            await forceLeaveRoom(false);
++            return;
+           }
++          await loadRoom(roomCode);
+         })
+         .subscribe();
+ 
+-      appState.typingChannel = supabaseClient.channel(`typing-${appState.room}`)
+-        .on("broadcast", { event: "typing" }, ({ payload }) => {
+-          if (!payload || payload.username === appState.currentUser.username) return;
+-          if (payload.room !== appState.room) return;
+-          if (payload.active) {
+-            appState.typingUsers.add(payload.username);
+-            updateTypingIndicator();
+-          } else {
+-            appState.typingUsers.delete(payload.username);
+-            updateTypingIndicator();
++      const typingSub = sb.channel(`typing:${roomCode}`)
++        .on('broadcast', { event: 'typing' }, ({ payload }) => {
++          if (payload.user !== state.me.username) {
++            if (payload.typing) state.typingUsers.add(payload.user);
++            else state.typingUsers.delete(payload.user);
++            el.typingPill.textContent = `typing: ${[...state.typingUsers].join(', ') || 'none'}`;
+           }
+         })
+         .subscribe();
+-    }
+ 
+-    async function sendMessage() {
+-      const text = els.messageInput.value.trim();
+-      if (!text) return;
+-      if (appState.bannedDB[appState.currentUser.username]) return setStatus(els.chatStatus, "You are banned.", true);
+-      els.messageInput.value = "";
+-      try {
+-        await sendDbMessage(text, "text");
+-        await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: false } });
+-      } catch (error) {
+-        setStatus(els.chatStatus, `Send failed: ${error.message}`, true);
++      state.subscriptions = [msgSub, memSub, roomSub, typingSub];
++    }
++
++    function unsubscribeAll() {
++      state.subscriptions.forEach((s) => { try { sb.removeChannel(s); } catch {} });
++      state.subscriptions = [];
++      state.typingUsers.clear();
++    }
++
++    async function loadRoom(code) {
++      const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
++      if (!room) return;
++      state.room = room;
++      const { data: accessRows } = await sb.from('room_access').select('*').eq('room_code', code);
++      state.roomAccess = accessRows?.[0] || { visibility: 'private' };
++      el.activeRoomName.textContent = room.room_name;
++      el.activeRoomMeta.textContent = `${code} • ${state.roomAccess.visibility} • host @${room.host_username}`;
++      el.leaveBtn.classList.remove('hidden');
++      el.closeBtn.classList.toggle('hidden', !isHost());
++      el.hostCrown.classList.toggle('hidden', !isHost());
++    }
++
++    async function loadMembers(code) {
++      const { data } = await sb.from('members').select('*').eq('room_code', code).order('joined_at', { ascending: true });
++      state.members = data || [];
++      const online = state.members.filter(m => m.is_online).length;
++      el.memberPill.textContent = `members: ${state.members.length} (${online} online)`;
++      el.memberListBar.innerHTML = state.members.map((m) => `
++        <span class="pill ${m.is_online ? 'on' : 'off'}" style="margin-right:6px; margin-bottom:4px; display:inline-flex;">
++          ${m.is_host ? '👑' : '👤'} @${m.username}
++          ${(isHost() && m.username !== state.me.username) ? `<button data-kick="${m.username}" style="width:auto; margin:0 0 0 5px; padding:2px 6px;">Kick</button>` : ''}
++        </span>
++      `).join('') || '<span class="tiny">No members yet.</span>';
++      if (state.room) {
++        const host = state.members.find(m => m.is_host);
++        if (host && host.username !== state.room.host_username) {
++          await sb.from('rooms').update({ host_username: host.username }).eq('room_code', code);
++          state.room.host_username = host.username;
++          el.closeBtn.classList.toggle('hidden', !isHost());
++          el.hostCrown.classList.toggle('hidden', !isHost());
++        }
+       }
+     }
+ 
+-    async function deleteMessage(messageId) {
+-      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+-      const mine = appState.messages.find((m) => m.id === messageId)?.username === appState.currentUser?.username;
+-      if (!isRoomHost && !mine) return;
+-      const { error } = await supabaseClient.from("messages").delete().eq("id", messageId).eq("room", appState.room);
+-      if (error) setStatus(els.chatStatus, `Delete failed: ${error.message}`, true);
++    async function loadMessages(code) {
++      const { data } = await sb.from('messages').select('*').eq('room', code).order('created_at', { ascending: true }).limit(500);
++      state.messages = (data || []).map(parseMessage);
++      renderChat();
++      const latest = state.messages.at(-1);
++      if (latest) el.activityPill.textContent = `activity: ${new Date(latest.created_at).toLocaleString()}`;
+     }
+ 
+-    async function kickMember(username) {
+-      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+-      if (!isRoomHost) return;
+-      await supabaseClient.from("members").update({ is_online: false }).eq("room_code", appState.room).eq("username", username);
+-      await sendDbMessage(`${username} left the room`, "system");
++    function isHost() {
++      if (!state.room || !state.me) return false;
++      return state.room.host_username === state.me.username;
+     }
+ 
+-    async function closeRoom() {
+-      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
+-      if (!isRoomHost) return;
+-      await sendDbMessage(`${appState.currentUser.username} closed the room`, "system");
+-      await supabaseClient.from("rooms").update({ is_active: false }).eq("room_code", appState.room);
+-      setTimeout(() => leaveRoom(false), 600);
+-    }
+-
+-    async function leaveRoom(announce = true) {
+-      const username = appState.currentUser?.username;
+-      const roomCode = appState.room;
+-      if (username && roomCode) {
+-        await supabaseClient.from("members").update({ is_online: false }).eq("room_code", roomCode).eq("username", username);
+-        if (announce) await sendDbMessage(`${username} left the room`, "system");
+-      }
+-      cleanupSubscriptions();
+-      appState.room = null;
+-      appState.roomMeta = null;
+-      appState.messages = [];
+-      appState.members = [];
+-      showScreen(els.menuScreen);
+-      setStatus(els.menuStatus, "Left room.");
+-    }
+-
+-    function setupEvents() {
+-      document.getElementById("toLogin").onclick = () => switchAuth(true);
+-      document.getElementById("toSignup").onclick = () => switchAuth(false);
+-
+-      els.signupPass.addEventListener("input", renderPasswordStrength);
+-
+-      document.getElementById("signupBtn").onclick = () => {
+-        const username = els.signupUser.value.trim();
+-        const pass = els.signupPass.value;
+-        if (!username || !pass) return (els.signupStatus.textContent = "Fill all fields.");
+-        if (appState.usersDB[username]) return (els.signupStatus.textContent = "Username already taken.");
+-        if (passwordScore(pass) < 2) return (els.signupStatus.textContent = "Password too weak.");
+-
+-        appState.usersDB[username] = hashPassword(pass);
+-        persistState();
+-        els.signupStatus.className = "ok";
+-        els.signupStatus.textContent = "Account created. You can log in.";
+-        switchAuth(true);
+-      };
++    async function joinRoom(code) {
++      const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
++      if (!room) return setStatus(el.roomStatus, 'Room not found.', true);
++      const access = await canJoinRoom(room);
++      if (!access.ok) return setStatus(el.roomStatus, access.reason, true);
+ 
+-      document.getElementById("loginBtn").onclick = () => {
+-        const username = els.loginUser.value.trim();
+-        const pass = els.loginPass.value;
+-        if (appState.bannedDB[username]) {
+-          els.loginStatus.textContent = "This account is banned.";
+-          return;
+-        }
+-        if (appState.usersDB[username] !== hashPassword(pass)) {
+-          els.loginStatus.textContent = "Invalid credentials.";
+-          return;
+-        }
+-        appState.currentUser = { username };
+-        localStorage.setItem("chat_session", JSON.stringify(appState.currentUser));
+-        bootToMenu();
+-      };
++      const { data: hostEntry } = await sb.from('members').select('*').eq('room_code', code).eq('username', room.host_username).maybeSingle();
++      if (!hostEntry) {
++        await sb.from('members').upsert({ room_code: code, username: room.host_username, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
++      }
+ 
+-      document.getElementById("logoutBtn").onclick = () => {
+-        localStorage.removeItem("chat_session");
+-        appState.currentUser = null;
+-        showScreen(els.authScreen);
+-      };
++      await sb.from('members').upsert({ room_code: code, username: state.me.username, is_host: false, is_online: true }, { onConflict: 'room_code,username' });
++      await sb.from('room_invites').update({ status: 'accepted' }).eq('room_code', code).eq('to_username', state.me.username).eq('status', 'pending');
++      await sendSystem(code, `@${state.me.username} joined the room.`);
+ 
+-      document.getElementById("createRoomBtn").onclick = createRoom;
+-      document.getElementById("joinRoomBtn").onclick = () => joinRoom();
+-      document.getElementById("sendFriendRequestBtn").onclick = sendFriendRequest;
+-      document.getElementById("sendBtn").onclick = sendMessage;
+-      document.getElementById("leaveRoomBtn").onclick = () => leaveRoom(true);
+-      document.getElementById("closeRoomBtn").onclick = closeRoom;
+-
+-      document.getElementById("copyCodeBtn").onclick = async () => {
+-        try {
+-          await navigator.clipboard.writeText(appState.room || "");
+-          setStatus(els.chatStatus, "Room code copied");
+-        } catch {
+-          setStatus(els.chatStatus, "Unable to copy code", true);
+-        }
+-      };
++      await loadRoom(code);
++      await loadMembers(code);
++      await loadMessages(code);
++      await subscribeRoom(code);
++      await refreshRooms();
++      setStatus(el.roomStatus, 'Joined room.');
++    }
+ 
+-      els.messageInput.addEventListener("keydown", async (e) => {
+-        if (e.key === "Enter" && !e.shiftKey) {
+-          e.preventDefault();
+-          sendMessage();
+-        } else {
+-          clearTimeout(appState.typingTimer);
+-          if (appState.typingChannel && appState.room) {
+-            await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: true } });
+-            appState.typingTimer = setTimeout(async () => {
+-              await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: false } });
+-            }, 900);
+-          }
+-        }
+-      });
++    async function createRoom() {
++      const room_name = el.roomName.value.trim();
++      if (!room_name) return setStatus(el.roomStatus, 'Room name required.', true);
++      const room_code = roomCode();
++      const me = state.me.username;
++      const { error } = await sb.from('rooms').insert({ room_code, room_name, host_username: me, is_active: true });
++      if (error) return setStatus(el.roomStatus, error.message, true);
++
++      await sb.from('room_access').upsert({
++        room_code,
++        visibility: el.roomVisibility.value,
++        description: el.roomDesc.value.trim() || null,
++        max_members: Math.max(2, Math.min(250, Number(el.roomMax.value) || 40)),
++        is_locked: false,
++        announcements_only: false
++      }, { onConflict: 'room_code' });
++
++      await sb.from('members').upsert({ room_code, username: me, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
++      await sendSystem(room_code, `Room created by @${me}.`);
++      await refreshRooms();
++      await joinRoom(room_code);
++      el.roomName.value = ''; el.roomDesc.value = '';
++    }
++
++    async function safeHostTransferOrClose() {
++      if (!state.room) return;
++      const code = state.room.room_code;
++      const me = state.me.username;
++      const { data: remain } = await sb.from('members').select('*').eq('room_code', code).neq('username', me).order('joined_at', { ascending: true });
++      const candidates = (remain || []).filter((m) => m.is_online);
++      if (!candidates.length) {
++        await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
++        await sendSystem(code, 'Room closed because host left and no online members remained.');
++        return 'closed';
++      }
++      const next = candidates[0];
++      await sb.from('members').update({ is_host: false }).eq('room_code', code).eq('username', me);
++      await sb.from('members').update({ is_host: true }).eq('room_code', code).eq('username', next.username);
++      await sb.from('rooms').update({ host_username: next.username }).eq('room_code', code);
++      await sendSystem(code, `Host transferred to @${next.username}.`);
++      return 'transferred';
++    }
++
++    async function forceLeaveRoom(markOffline = true) {
++      if (!state.room) return;
++      const code = state.room.room_code;
++      const me = state.me.username;
++
++      if (isHost()) await safeHostTransferOrClose();
++      if (markOffline) {
++        await sb.from('members').delete().eq('room_code', code).eq('username', me);
++        await sendSystem(code, `@${me} left the room.`);
++      }
+ 
+-      document.getElementById("emojiStrip").addEventListener("click", (e) => {
+-        if (e.target.tagName !== "BUTTON") return;
+-        els.messageInput.value += e.target.textContent;
+-        els.messageInput.focus();
+-      });
++      unsubscribeAll();
++      state.room = null; state.roomAccess = null; state.members = []; state.messages = [];
++      el.activeRoomName.textContent = 'No room joined';
++      el.activeRoomMeta.textContent = 'Start with your friends, not public lobbies.';
++      el.leaveBtn.classList.add('hidden');
++      el.closeBtn.classList.add('hidden');
++      el.hostCrown.classList.add('hidden');
++      el.memberPill.textContent = 'members: 0';
++      el.typingPill.textContent = 'typing: none';
++      el.chat.innerHTML = '';
++      await refreshRooms();
++      renderFriends();
++    }
+ 
+-      window.addEventListener("beforeunload", () => {
+-        if (appState.room && appState.currentUser) {
+-          supabaseClient.from("members").update({ is_online: false }).eq("room_code", appState.room).eq("username", appState.currentUser.username);
+-        }
+-      });
++    async function closeRoom() {
++      if (!state.room || !isHost()) return;
++      if (!confirm('Close room for everyone?')) return;
++      await sb.from('rooms').update({ is_active: false }).eq('room_code', state.room.room_code);
++      await sendSystem(state.room.room_code, 'Room closed by host.');
++      await forceLeaveRoom(false);
++    }
++
++    async function hideRoomFromList(code) {
++      const room = state.roomList.find((r) => r.room_code === code);
++      if (!room) return;
++      if (room.host_username === state.me.username) {
++        if (!confirm(`Delete room ${code} for everyone?`)) return;
++        await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
++        await sendSystem(code, `Room deleted by @${state.me.username}.`);
++        if (state.room?.room_code === code) await forceLeaveRoom(false);
++      } else {
++        await sb.from('members').delete().eq('room_code', code).eq('username', state.me.username);
++        if (state.room?.room_code === code) await forceLeaveRoom(false);
++      }
++      await refreshRooms();
++      setStatus(el.roomStatus, room.host_username === state.me.username ? 'Room deleted.' : 'Room hidden.');
++    }
+ 
+-      els.adminOpenBtn.onclick = () => {
+-        els.adminModal.classList.remove("hidden");
+-        els.adminLoginPanel.classList.remove("hidden");
+-        els.adminPanel.classList.add("hidden");
+-        els.adminLoginStatus.textContent = "";
+-      };
++    async function sendTextMessage() {
++      if (!state.room) return setStatus(el.composeStatus, 'Join a room first.', true);
++      const txt = el.msgInput.value.trim();
++      if (!txt) return;
+ 
+-      els.adminCloseBtn.onclick = () => {
+-        els.adminModal.classList.add("hidden");
+-      };
++      const payload = { body: txt, reply_to: state.replyTo ? { id: state.replyTo.id, username: state.replyTo.username, body: state.replyTo.payload.body } : null, delivery: 'sent' };
++      const { error } = await sb.from('messages').insert({ username: state.me.username, room: state.room.room_code, message: messagePayload(txt, payload), message_type: 'text' });
++      if (error) {
++        setStatus(el.composeStatus, 'Send failed, retrying...', true);
++        setTimeout(sendTextMessage, 1200);
++        return;
++      }
+ 
+-      els.adminLoginBtn.onclick = async () => {
+-        if (els.adminUser.value.trim() !== ADMIN_USER || els.adminPass.value !== ADMIN_PASS) {
+-          els.adminLoginStatus.textContent = "Invalid admin credentials.";
+-          return;
+-        }
+-        els.adminLoginPanel.classList.add("hidden");
+-        els.adminPanel.classList.remove("hidden");
+-        await renderAdminPanel();
++      el.msgInput.value = '';
++      clearReply();
++      setStatus(el.composeStatus, 'Sent');
++    }
++
++    function clearReply() {
++      state.replyTo = null;
++      el.replyBar.classList.add('hidden');
++      el.replyBar.textContent = '';
++    }
++
++    async function sendMedia(file) {
++      if (!state.room || !file) return;
++      if (file.size > 6 * 1024 * 1024) return setStatus(el.composeStatus, 'Max file size is 6MB for lightweight mode.', true);
++      const reader = new FileReader();
++      reader.onload = async () => {
++        const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
++        const media = { kind, name: file.name, type: file.type || 'application/octet-stream', data: reader.result };
++        const body = kind === 'image' ? '📷 Photo' : kind === 'video' ? '🎬 Video' : '📎 File';
++        const { error } = await sb.from('messages').insert({
++          username: state.me.username,
++          room: state.room.room_code,
++          message: messagePayload(body, { body, media, delivery: 'sent' }),
++          message_type: kind
++        });
++        if (error) return setStatus(el.composeStatus, error.message, true);
++        setStatus(el.composeStatus, 'Media sent.');
+       };
++      reader.readAsDataURL(file);
++    }
++
++    async function updateMessage(id, updater) {
++      const msg = state.messages.find((m) => m.id === id);
++      if (!msg) return;
++      const payload = structuredClone(msg.payload);
++      updater(payload);
++      await sb.from('messages').update({ message: JSON.stringify(payload) }).eq('id', id);
++    }
++
++    async function kickUser(username) {
++      if (!isHost() || !state.room || username === state.me.username) return;
++      if (!confirm(`Kick @${username}?`)) return;
++      const code = state.room.room_code;
++      await sb.from('members').delete().eq('room_code', code).eq('username', username);
++      await sb.from('room_invites').upsert({ room_code: code, from_username: state.me.username, to_username: username, status: 'kicked', expires_at: null }, { onConflict: 'room_code,to_username' });
++      await sendSystem(code, `@${username} was kicked.`);
++    }
++
++    async function openDm(friend) {
++      const pair = [state.me.username, friend].sort();
++      const code = `DM_${pair.join('_').slice(0, 18).toUpperCase()}`;
++      const roomName = `DM: ${pair[0]} & ${pair[1]}`;
++      const { data: ex } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
++      if (!ex) {
++        await sb.from('rooms').insert({ room_code: code, room_name: roomName, host_username: pair[0], is_active: true });
++        await sb.from('room_access').upsert({ room_code: code, visibility: 'invite', description: 'Direct friend message', max_members: 2 }, { onConflict: 'room_code' });
++        await sb.from('room_invites').upsert({ room_code: code, from_username: state.me.username, to_username: friend, status: 'accepted' }, { onConflict: 'room_code,to_username' });
++      }
++      await joinRoom(code);
++    }
++
++    async function acceptFriendRequest(id) {
++      const req = state.reqs.find((r) => r.id === Number(id));
++      if (!req) return;
++      await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', req.id);
++      const [a,b] = [req.from_user, req.to_user].sort();
++      await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
++      await refreshFriends();
++    }
++
++    async function rejectFriendRequest(id) {
++      await sb.from('friend_requests').update({ status: 'rejected' }).eq('id', Number(id));
++      await refreshFriends();
++    }
++
++    async function acceptInviteById(id) {
++      const inv = state.invites.find((r) => r.id === Number(id));
++      if (!inv) return;
++      await sb.from('room_invites').update({ status: 'accepted' }).eq('id', Number(id));
++      await sendSystem(inv.room_code, `@${state.me.username} accepted invite.`);
++      await joinRoom(inv.room_code);
++      await refreshInvites();
++    }
++
++    async function rejectInviteById(id) {
++      await sb.from('room_invites').update({ status: 'rejected' }).eq('id', Number(id));
++      await refreshInvites();
++    }
++
++    async function refreshRoomMessageAlerts() {
++      if (!state.me) return;
++      const { data: memberships } = await sb.from('members').select('room_code').eq('username', state.me.username);
++      const codes = [...new Set((memberships || []).map((m) => m.room_code))];
++      state.memberRoomCodes = new Set(codes);
++      await Promise.all(codes.map(async (code) => {
++        const { data: row } = await sb.from('messages').select('id,username,created_at,message_type').eq('room', code).order('created_at', { ascending: false }).limit(1).maybeSingle();
++        if (!row || row.username === state.me.username || row.message_type === 'system') return;
++        const prev = state.seenMessageIds[code];
++        state.seenMessageIds[code] = row.id;
++        if (!prev || prev === row.id || state.room?.room_code === code || state.mutedRooms.has(code)) return;
++        enqueueModal({
++          title: 'New room message',
++          body: `@${row.username} sent a new message in room <strong>${code}</strong>.`,
++          actions: [{ label: 'Open room', className: 'primary', onClick: async () => joinRoom(code) }]
++        });
++      }));
+     }
+ 
+-    function bootToMenu() {
+-      els.menuUser.textContent = appState.currentUser.username;
+-      showScreen(els.menuScreen);
+-      renderSavedRooms();
+-      renderFriends();
+-      setStatus(els.menuStatus, "");
++    function subscribeGlobalNotifications() {
++      if (!state.me) return;
++      if (state.globalSub) {
++        try { sb.removeChannel(state.globalSub); } catch {}
++      }
++      const me = state.me.username;
++      state.globalSub = sb.channel(`global:${me}`)
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests', filter: `to_user=eq.${me}` }, async () => {
++          await refreshFriends();
++        })
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'room_invites', filter: `to_username=eq.${me}` }, async () => {
++          await refreshInvites();
++          await refreshRooms();
++        })
++        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
++          const row = payload.new || {};
++          if (row.username === me || row.message_type === 'system') return;
++          if (!state.memberRoomCodes.has(row.room) || state.mutedRooms.has(row.room)) return;
++          if (state.room?.room_code === row.room) return;
++          const prev = state.seenMessageIds[row.room];
++          state.seenMessageIds[row.room] = row.id;
++          if (prev === row.id) return;
++          enqueueModal({
++            title: 'New room message',
++            body: `@${row.username} sent a new message in room <strong>${row.room}</strong>.`,
++            actions: [{ label: 'Open room', className: 'primary', onClick: async () => joinRoom(row.room) }]
++          });
++        })
++        .subscribe();
+     }
+ 
+-    function init() {
+-      setupEvents();
+-      renderPasswordStrength();
+-      renderSavedRooms();
+-      if (appState.currentUser?.username) bootToMenu();
+-      else showScreen(els.authScreen);
+-    }
++    async function signup() {
++      const username = el.suUser.value.trim().toLowerCase();
++      const password = el.suPass.value;
++      if (!/^[a-z0-9_]{3,24}$/.test(username)) return setStatus(el.suStatus, 'Username: 3-24 chars [a-z0-9_].', true);
++      if (!password || password.length < 3) return setStatus(el.suStatus, 'Password must be at least 3 characters.', true);
++
++      const { data: exists } = await sb.from('users').select('id').eq('username', username).maybeSingle();
++      if (exists) return setStatus(el.suStatus, 'Username already taken.', true);
++
++      const friend_code = friendCodeFromUsername(username);
++      const password_hash = await sha256(password);
++      const { error } = await sb.from('users').upsert({ username, password_hash, friend_code, created_at: new Date().toISOString(), last_seen: new Date().toISOString() }, { onConflict: 'username' });
++      if (error) return setStatus(el.suStatus, error.message, true);
++      setStatus(el.suStatus, 'Account created. Log in now.');
++      el.suPass.value = '';
++      showAuth(true);
++    }
++
++    async function login() {
++      const username = el.liUser.value.trim().toLowerCase();
++      const password = el.liPass.value;
++      if (!password) return setStatus(el.liStatus, 'Enter password.', true);
++      const isAdminLogin = username === 'p' && password === 'p';
++      if (isAdminLogin) {
++        await sb.from('users').upsert({
++          username: 'p',
++          password_hash: await sha256('p'),
++          friend_code: friendCodeFromUsername('p'),
++          created_at: new Date().toISOString(),
++          last_seen: new Date().toISOString(),
++          is_online: true
++        }, { onConflict: 'username' });
++      }
++      const { data: user } = await sb.from('users').select('*').eq('username', username).maybeSingle();
++      if (!user) return setStatus(el.liStatus, 'Account not found. Sign up first.', true);
++      const hashed = await sha256(password);
++      if (user.password_hash && user.password_hash !== hashed) return setStatus(el.liStatus, 'Incorrect password.', true);
++      if (!user.password_hash) await sb.from('users').update({ password_hash: hashed }).eq('username', username);
++
++      state.me = { username, friend_code: user.friend_code || friendCodeFromUsername(username) };
++      state.adminMode = isAdminLogin;
++      if (!user.friend_code) {
++        await sb.from('users').update({ friend_code: state.me.friend_code }).eq('username', username);
++      }
++      await sb.from('users').update({ last_seen: new Date().toISOString(), is_online: true }).eq('username', username);
++      el.liPass.value = '';
++      showApp();
++      await bootstrapAfterAuth();
++    }
++
++    async function logout() {
++      if (state.room) await forceLeaveRoom();
++      if (state.me) await sb.from('users').update({ is_online: false, last_seen: new Date().toISOString() }).eq('username', state.me.username);
++      if (state.globalSub) {
++        try { sb.removeChannel(state.globalSub); } catch {}
++        state.globalSub = null;
++      }
++      state.me = null;
++      state.adminMode = false;
++      showAuth(true);
++    }
++
++    async function bootstrapAfterAuth() {
++      await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
++      subscribeGlobalNotifications();
++      const refreshTicker = setInterval(async () => {
++        if (!state.me) return clearInterval(refreshTicker);
++        await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
++      }, 8000);
++    }
++
++    // Events
++    qs('#gotoLogin').onclick = () => showAuth(true);
++    qs('#gotoSignup').onclick = () => showAuth(false);
++    qs('#signupBtn').onclick = signup;
++    qs('#loginBtn').onclick = login;
++    el.suTogglePass.onclick = () => {
++      const hide = el.suPass.type === 'text';
++      el.suPass.type = hide ? 'password' : 'text';
++      el.suTogglePass.textContent = hide ? 'Show' : 'Hide';
++    };
++    el.liTogglePass.onclick = () => {
++      const hide = el.liPass.type === 'text';
++      el.liPass.type = hide ? 'password' : 'text';
++      el.liTogglePass.textContent = hide ? 'Show' : 'Hide';
++    };
++    qs('#logoutBtn').onclick = logout;
++    el.modalDismiss.onclick = closeModal;
++    el.copyFriendCodeBtn.onclick = async () => {
++      const code = state.me?.friend_code;
++      if (!code) return;
++      await navigator.clipboard.writeText(code);
++      setStatus(el.friendStatus, 'Friend code copied!');
++    };
++    el.copyJoinCodeBtn.onclick = async () => {
++      const code = normalizeRoomCode(el.joinCode.value);
++      if (!code) return setStatus(el.roomStatus, 'Enter room code first.', true);
++      await navigator.clipboard.writeText(code);
++      setStatus(el.roomStatus, `Room code ${code} copied!`);
++    };
++
++    qsa('.tab').forEach((b) => b.onclick = () => {
++      qsa('.tab').forEach((x) => x.classList.remove('active')); b.classList.add('active');
++      const tab = b.dataset.tab;
++      qs('#paneFriends').classList.toggle('hidden', tab !== 'friends');
++      qs('#paneRooms').classList.toggle('hidden', tab !== 'rooms');
++      qs('#paneRequests').classList.toggle('hidden', tab !== 'requests');
++    });
++
++    qs('#sendReqBtn').onclick = async () => {
++      const code = normalizeFriendCode(el.friendSearch.value);
++      if (!code) return setStatus(el.friendStatus, 'Enter a friend code.', true);
++      const { data: user } = await sb.from('users').select('username,friend_code').eq('friend_code', code).maybeSingle();
++      if (!user) return setStatus(el.friendStatus, 'User not found.', true);
++      const to = user.username;
++      if (to === state.me.username) return setStatus(el.friendStatus, 'That is your code.', true);
++      const [a,b] = [state.me.username, to].sort();
++      const { data: alreadyFriends } = await sb.from('friends').select('id').eq('user_a', a).eq('user_b', b).maybeSingle();
++      if (alreadyFriends) return setStatus(el.friendStatus, `@${to} is already your friend.`);
++      const { data: reverseReq } = await sb.from('friend_requests').select('*').eq('from_user', to).eq('to_user', state.me.username).eq('status', 'pending').maybeSingle();
++      if (reverseReq) {
++        await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', reverseReq.id);
++        await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
++        await refreshFriends();
++        return setStatus(el.friendStatus, `Friend added: @${to}.`);
++      }
++      const { data: already } = await sb.from('friend_requests').select('id').eq('from_user', state.me.username).eq('to_user', to).eq('status', 'pending').maybeSingle();
++      if (already) return setStatus(el.friendStatus, 'Request already pending.', true);
++      await sb.from('friend_requests').insert({ from_user: state.me.username, to_user: to, status: 'pending' });
++      setStatus(el.friendStatus, `Request sent to @${to}.`);
++      el.friendSearch.value = '';
++    };
++
++    qs('#createRoomBtn').onclick = createRoom;
++    qs('#joinCodeBtn').onclick = async () => {
++      const code = normalizeRoomCode(el.joinCode.value);
++      if (!code) return;
++      await joinRoom(code);
++    };
++    el.friendSearch.addEventListener('keydown', (e) => {
++      if (e.key === 'Enter') {
++        e.preventDefault();
++        qs('#sendReqBtn').click();
++      }
++    });
++    el.friendSearch.addEventListener('input', () => {
++      el.friendSearch.value = normalizeFriendCode(el.friendSearch.value);
++    });
++    el.joinCode.addEventListener('input', () => {
++      el.joinCode.value = normalizeRoomCode(el.joinCode.value);
++    });
++
++    qs('#sendBtn').onclick = sendTextMessage;
++    el.msgInput.addEventListener('keydown', async (e) => {
++      if (e.key === 'Enter' && !e.shiftKey) {
++        e.preventDefault();
++        await sendTextMessage();
++      } else if (state.room) {
++        sb.channel(`typing:${state.room.room_code}`).send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: true } });
++        clearTimeout(el.msgInput._tt);
++        el.msgInput._tt = setTimeout(() => {
++          sb.channel(`typing:${state.room.room_code}`).send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: false } });
++        }, 850);
++      }
++    });
++
++    qsa('.emojiBtn').forEach((b) => b.onclick = () => { el.msgInput.value += b.dataset.emoji; el.msgInput.focus(); });
++    qs('#gifBtn').onclick = async () => {
++      const url = prompt('Paste GIF URL:');
++      if (!url) return;
++      await sb.from('messages').insert({ username: state.me.username, room: state.room.room_code, message: messagePayload('GIF', { body: url, media: { kind: 'image', data: url, name: 'gif' } }), message_type: 'gif' });
++    };
++
++    el.mediaInput.addEventListener('change', (e) => sendMedia(e.target.files[0]));
++    ['dragenter','dragover'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => { e.preventDefault(); el.dropZone.classList.add('drag'); }));
++    ['dragleave','drop'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => { e.preventDefault(); el.dropZone.classList.remove('drag'); }));
++    el.dropZone.addEventListener('drop', (e) => sendMedia(e.dataTransfer.files[0]));
++
++    el.msgSearch.addEventListener('input', renderChat);
++    el.leaveBtn.onclick = () => forceLeaveRoom();
++    el.closeBtn.onclick = closeRoom;
++
++    el.chat.addEventListener('scroll', () => {
++      const nearBottom = el.chat.scrollHeight - (el.chat.scrollTop + el.chat.clientHeight) < 80;
++      el.jumpLatest.classList.toggle('hidden', nearBottom);
++    });
++    el.jumpLatest.onclick = () => { el.chat.scrollTop = el.chat.scrollHeight; el.jumpLatest.classList.add('hidden'); };
++
++    el.chat.addEventListener('click', async (e) => {
++      const btn = e.target.closest('button');
++      if (!btn) return;
++      if (btn.dataset.reply) {
++        const m = state.messages.find(x => x.id === Number(btn.dataset.reply));
++        state.replyTo = m;
++        el.replyBar.classList.remove('hidden');
++        el.replyBar.textContent = `Replying to @${m.username}: ${(m.payload.body || '').slice(0, 100)} (click to clear)`;
++      }
++      if (btn.dataset.react) {
++        const [id, emo] = btn.dataset.react.split(':');
++        await updateMessage(Number(id), (p) => {
++          p.reactions ||= {};
++          p.reactions[emo] ||= [];
++          if (p.reactions[emo].includes(state.me.username)) p.reactions[emo] = p.reactions[emo].filter((u) => u !== state.me.username);
++          else p.reactions[emo].push(state.me.username);
++        });
++      }
++      if (btn.dataset.copy) {
++        const m = state.messages.find(x => x.id === Number(btn.dataset.copy));
++        await navigator.clipboard.writeText(m.payload.body || '');
++      }
++      if (btn.dataset.delete) {
++        const id = Number(btn.dataset.delete);
++        const m = state.messages.find(x => x.id === id);
++        if (!m) return;
++        if (!(m.username === state.me.username || isHost())) return;
++        await updateMessage(id, (p) => { p.deleted = true; p.body = ''; p.media = null; p.edited_at = new Date().toISOString(); });
++      }
++      if (btn.dataset.edit) {
++        const id = Number(btn.dataset.edit);
++        const m = state.messages.find(x => x.id === id);
++        const next = prompt('Edit message:', m.payload.body || '');
++        if (next == null) return;
++        await updateMessage(id, (p) => { p.body = next; p.edited_at = new Date().toISOString(); });
++      }
++    });
++
++    el.replyBar.onclick = clearReply;
++
++    el.friendsList.addEventListener('click', async (e) => {
++      const dm = e.target.closest('[data-dm]')?.dataset.dm;
++      const inviteUser = e.target.closest('[data-invite-user]')?.dataset.inviteUser;
++      if (dm) await openDm(dm);
++      if (inviteUser && state.room) {
++        await sb.from('room_invites').upsert({ room_code: state.room.room_code, from_username: state.me.username, to_username: inviteUser, status: 'pending', expires_at: null }, { onConflict: 'room_code,to_username' });
++        await sendSystem(state.room.room_code, `@${inviteUser} invited by @${state.me.username}.`);
++      }
++    });
++
++    el.requestList.addEventListener('click', async (e) => {
++      const acc = e.target.closest('[data-accept]')?.dataset.accept;
++      const rej = e.target.closest('[data-reject]')?.dataset.reject;
++      if (acc) await acceptFriendRequest(acc);
++      if (rej) await rejectFriendRequest(rej);
++    });
++
++    el.inviteList.addEventListener('click', async (e) => {
++      const acc = e.target.closest('[data-invite-accept]')?.dataset.inviteAccept;
++      const rej = e.target.closest('[data-invite-reject]')?.dataset.inviteReject;
++      if (acc) await acceptInviteById(acc);
++      if (rej) await rejectInviteById(rej);
++    });
++
++    el.roomList.addEventListener('click', async (e) => {
++      const code = e.target.closest('[data-join-room]')?.dataset.joinRoom;
++      const muteCode = e.target.closest('[data-mute-room]')?.dataset.muteRoom;
++      const copyCode = e.target.closest('[data-copy-room]')?.dataset.copyRoom;
++      const clearCode = e.target.closest('[data-clear-room]')?.dataset.clearRoom;
++      if (code) {
++        await joinRoom(code);
++      }
++      if (muteCode) {
++        if (state.mutedRooms.has(muteCode)) state.mutedRooms.delete(muteCode);
++        else state.mutedRooms.add(muteCode);
++        saveMutedRooms();
++        renderRoomList();
++      }
++      if (copyCode) {
++        await navigator.clipboard.writeText(copyCode);
++        setStatus(el.roomStatus, `Room code ${copyCode} copied.`);
++      }
++      if (clearCode) {
++        await hideRoomFromList(clearCode);
++      }
++    });
++
++    el.memberListBar.addEventListener('click', async (e) => {
++      const target = e.target.closest('[data-kick]')?.dataset.kick;
++      if (target) await kickUser(target);
++    });
++
++    setInterval(async () => {
++      if (!state.room || !isHost()) return;
++      // keep host authority from backend data only
++      const { data: hostMember } = await sb.from('members').select('*').eq('room_code', state.room.room_code).eq('username', state.room.host_username).maybeSingle();
++      if (!hostMember) {
++        const fallback = state.members.find((m) => m.is_online);
++        if (fallback) {
++          await sb.from('members').update({ is_host: true }).eq('room_code', state.room.room_code).eq('username', fallback.username);
++          await sb.from('rooms').update({ host_username: fallback.username }).eq('room_code', state.room.room_code);
++        }
++      }
++    }, 12000);
+ 
+-    init();
++    // init
++    (async function init() {
++      await wipeCloudDataOnce();
++      showAuth(true);
++    })();
+   </script>
+ </body>
+-</html>
+\ No newline at end of file
++</html>
+ 
+EOF
+)
