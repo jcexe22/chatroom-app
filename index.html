@@ -23,7 +23,13 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; font-family: Inter, Segoe UI, Arial, sans-serif; color: var(--txt); background: radial-gradient(circle at top left, #5d33d6, #120a2b 58%); }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      color: var(--txt);
+      background: radial-gradient(circle at top left, #5d33d6, #120a2b 58%);
+    }
     .hidden { display: none !important; }
 
     .app {
@@ -134,9 +140,6 @@
       padding: 1px 6px;
       margin-left: 6px;
     }
-    .pass-row { display:flex; gap:6px; align-items:center; margin-bottom:8px; }
-    .pass-row input { margin:0; }
-    .pass-row button { width:auto; margin:0; }
     .modal-wrap {
       position: fixed;
       inset: 0;
@@ -154,6 +157,8 @@
       border-radius: 16px;
       padding: 14px;
       box-shadow: 0 12px 34px rgba(0,0,0,0.4);
+      max-height: 85vh;
+      overflow: auto;
     }
 
     .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 8px; border-bottom: 1px solid var(--line); }
@@ -174,7 +179,10 @@
       margin-bottom: 8px;
       animation: fadeIn .18s ease;
     }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0);} }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     .content {
       display: flex;
@@ -185,6 +193,7 @@
     .content.room-closed .composer,
     .content.room-closed #memberListBar,
     .content.room-closed .room-tools { display: none; }
+
     .empty-room {
       display: none;
       min-height: 320px;
@@ -207,6 +216,7 @@
       align-items: center;
       justify-content: space-between;
       background: rgba(16, 27, 45, .9);
+      flex-wrap: wrap;
     }
 
     .chat {
@@ -219,6 +229,7 @@
 
     .msg { max-width: 82%; margin-bottom: 11px; }
     .msg.self { margin-left: auto; }
+    .msg.system { margin-inline: auto; }
     .meta { font-size: 11px; color: var(--muted); margin-bottom: 3px; }
     .bubble {
       background: var(--bubble-other);
@@ -230,12 +241,29 @@
       word-break: break-word;
     }
     .msg.self .bubble { background: var(--bubble-self); border-color: #3f79f0; }
-    .msg.system { margin-inline: auto; }
     .msg.system .bubble { background: var(--bubble-system); border-style: dashed; font-size: 12px; }
 
-    .quoted { border-left: 3px solid #95bfff; padding-left: 7px; margin-bottom: 7px; color: #bad3f5; font-size: 12px; }
-    .actions { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
-    .actions button { width: auto; margin: 0; padding: 3px 8px; font-size: 11px; border-radius: 999px; }
+    .quoted {
+      border-left: 3px solid #95bfff;
+      padding-left: 7px;
+      margin-bottom: 7px;
+      color: #bad3f5;
+      font-size: 12px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 5px;
+    }
+    .actions button {
+      width: auto;
+      margin: 0;
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+    }
 
     .composer {
       border-top: 1px solid var(--line);
@@ -243,7 +271,13 @@
       background: rgba(13, 24, 40, .95);
     }
 
-    .compose-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+    .compose-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
     .jump-btn {
       position: fixed;
       right: 26px;
@@ -265,15 +299,49 @@
     }
     .drop.drag { border-color: #65a1ff; color: #c7dcff; }
 
-    .pill { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; font-size: 11px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+    }
     .on { color: #86efac; }
     .off { color: #94a3b8; }
 
-    img.media, video.media { max-width: 250px; border-radius: 10px; margin-top: 6px; border: 1px solid #35527a; }
+    .badge-host {
+      font-size: 10px;
+      border-radius: 999px;
+      padding: 1px 7px;
+      background: #78350f;
+      color: #fcd34d;
+    }
+
+    img.media, video.media {
+      max-width: 250px;
+      border-radius: 10px;
+      margin-top: 6px;
+      border: 1px solid #35527a;
+    }
+
+    .admin-list-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
 
     @media (max-width: 900px) {
       .main { grid-template-columns: 1fr; }
-      .side { max-height: 42vh; border-right: none; border-bottom: 1px solid var(--line); }
+      .side {
+        max-height: 42vh;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
       .jump-btn { right: 12px; }
     }
   </style>
@@ -294,6 +362,7 @@
               <input id="suPass" type="password" placeholder="Password" maxlength="72" />
               <button id="suTogglePass" class="soft" style="width:auto; margin:0;">Show</button>
             </div>
+            <div id="passwordStrength" class="tiny">Password strength: -</div>
             <button id="signupBtn" class="primary">Create account</button>
             <div id="suStatus" class="status"></div>
             <button id="gotoLogin" class="ghost">I already have an account</button>
@@ -316,11 +385,16 @@
       <section id="appView" class="main hidden">
         <aside class="side">
           <div class="me">
-            <div class="avatar" id="meAvatar"><span id="meAvatarText">?</span>
+            <div class="avatar" id="meAvatar">
+              <span id="meAvatarText">?</span>
               <div class="verified-dot hidden" id="adminTick" title="admin mode"></div>
             </div>
             <div>
-              <div><strong id="meName">-</strong> <span id="adminBadge" class="admin-pill hidden">admin</span> <span id="hostCrown" class="hidden">👑</span></div>
+              <div>
+                <strong id="meName">-</strong>
+                <span id="adminBadge" class="admin-pill hidden">admin</span>
+                <span id="hostCrown" class="hidden">👑</span>
+              </div>
               <div class="tiny" id="mePresence">offline</div>
             </div>
             <button id="logoutBtn" class="soft" style="width:auto; margin-left:auto;">Logout</button>
@@ -356,6 +430,7 @@
             </select>
             <input id="roomMax" type="number" min="2" max="250" value="40" />
             <button id="createRoomBtn" class="success">Create room</button>
+
             <h4>Join by code</h4>
             <div style="display:flex; gap:6px;">
               <input id="joinCode" placeholder="Room code" maxlength="12" />
@@ -363,6 +438,7 @@
             </div>
             <button id="joinCodeBtn" class="primary">Join room</button>
             <div id="roomStatus" class="status"></div>
+
             <h4>My visible rooms</h4>
             <div id="roomList"></div>
           </div>
@@ -372,6 +448,8 @@
             <div id="requestList"></div>
             <h4>Room invites</h4>
             <div id="inviteList"></div>
+            <h4>Admin mode</h4>
+            <button id="openAdminPanelBtn" class="soft">Open admin tools</button>
           </div>
         </aside>
 
@@ -382,7 +460,10 @@
               <div class="tiny" id="activeRoomMeta">Start with your friends, not public lobbies.</div>
             </div>
             <div style="display:flex; gap:6px; align-items:center;">
-              <label class="pill"><input type="checkbox" id="autoScroll" checked style="width:auto; margin:0;"> auto-scroll</label>
+              <label class="pill">
+                <input type="checkbox" id="autoScroll" checked style="width:auto; margin:0;">
+                auto-scroll
+              </label>
               <button id="leaveBtn" class="warn hidden" style="width:auto;">Leave</button>
               <button id="closeBtn" class="danger hidden" style="width:auto;">Close room</button>
             </div>
@@ -394,13 +475,16 @@
             <div class="pill" id="memberPill">members: 0</div>
             <div class="pill" id="activityPill">activity: idle</div>
           </div>
+
           <div id="memberListBar" style="padding:8px 12px; border-bottom:1px solid var(--line); max-height:94px; overflow:auto;"></div>
+
           <div class="empty-room" id="emptyRoomState">
             <div>
               <h3 style="margin:0 0 8px;">Pick a room to start chatting</h3>
               <div>Go to <strong>Rooms</strong> to create or join by code.</div>
             </div>
           </div>
+
           <div id="chat" class="chat"></div>
           <button id="jumpLatest" class="jump-btn hidden">Jump to latest ⬇</button>
 
@@ -414,6 +498,8 @@
               <button class="soft emojiBtn" data-emoji="👍" style="width:auto;">👍</button>
               <button class="soft emojiBtn" data-emoji="❤️" style="width:auto;">❤️</button>
               <button class="soft emojiBtn" data-emoji="😂" style="width:auto;">😂</button>
+              <button class="soft emojiBtn" data-emoji="🔥" style="width:auto;">🔥</button>
+              <button class="soft emojiBtn" data-emoji="🎉" style="width:auto;">🎉</button>
               <button id="gifBtn" class="soft" style="width:auto;">Send GIF URL</button>
               <input id="mediaInput" type="file" style="max-width:260px;" />
             </div>
@@ -424,12 +510,31 @@
       </section>
     </div>
   </div>
+
   <div id="modalWrap" class="modal-wrap hidden">
     <div class="modal">
       <h3 id="modalTitle" style="margin-top:0;">Notification</h3>
       <div id="modalBody" class="tiny" style="line-height:1.4;"></div>
       <div id="modalActions" style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;"></div>
       <button id="modalDismiss" class="ghost">Close</button>
+    </div>
+  </div>
+
+  <div id="adminModalWrap" class="modal-wrap hidden">
+    <div class="modal">
+      <h3 style="margin-top:0;">Admin tools</h3>
+      <div id="adminLoginBox">
+        <p class="tiny">Admin username/password required.</p>
+        <input id="adminUser" placeholder="Admin username" />
+        <input id="adminPass" type="password" placeholder="Admin password" />
+        <button id="adminLoginBtn" class="success">Enter admin mode</button>
+        <div id="adminLoginStatus" class="status"></div>
+      </div>
+      <div id="adminPanel" class="hidden">
+        <p class="tiny">Manage users. Ban blocks login and sending.</p>
+        <div id="adminUsers"></div>
+      </div>
+      <button id="adminCloseBtn" class="ghost">Close</button>
     </div>
   </div>
 
@@ -440,18 +545,21 @@
     const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
     const LEGACY_KEYS = [
-      'chat_users','chat_session','chat_banned_users','chat_friends','chat_friend_requests','chat_room_modes','chat_saved_rooms'
+      'chat_users','chat_session','chat_banned_users','chat_friends',
+      'chat_friend_requests','chat_room_modes','chat_saved_rooms'
     ];
-    if (!localStorage.getItem('fresh_reset_done_v4')) {
+    if (!localStorage.getItem('fresh_reset_done_v5')) {
       LEGACY_KEYS.forEach((k) => localStorage.removeItem(k));
       localStorage.removeItem('freshchat_session');
       localStorage.removeItem('freshchat_muted_rooms');
-      localStorage.setItem('fresh_reset_done_v4', '1');
+      localStorage.setItem('fresh_reset_done_v5', '1');
     }
+
+    const ADMIN_USER = 'p';
+    const ADMIN_PASS = 'p';
 
     const state = {
       me: null,
-      meUser: null,
       room: null,
       roomAccess: null,
       members: [],
@@ -471,7 +579,9 @@
       modalOpen: false,
       lastInviteIds: new Set(),
       lastReqIds: new Set(),
-      seenMessageIds: {}
+      seenMessageIds: {},
+      typingChannelRef: null,
+      bannedUsers: {}
     };
 
     const el = {
@@ -481,29 +591,90 @@
       signupBox: document.getElementById('signupBox'),
       loginBox: document.getElementById('loginBox'),
       suUser: document.getElementById('suUser'),
-      suPass: document.getElementById('suPass'), suTogglePass: document.getElementById('suTogglePass'),
-      suStatus: document.getElementById('suStatus'), liUser: document.getElementById('liUser'),
-      liPass: document.getElementById('liPass'), liTogglePass: document.getElementById('liTogglePass'),
+      suPass: document.getElementById('suPass'),
+      suTogglePass: document.getElementById('suTogglePass'),
+      passwordStrength: document.getElementById('passwordStrength'),
+      suStatus: document.getElementById('suStatus'),
+      liUser: document.getElementById('liUser'),
+      liPass: document.getElementById('liPass'),
+      liTogglePass: document.getElementById('liTogglePass'),
       liStatus: document.getElementById('liStatus'),
-      meAvatar: document.getElementById('meAvatar'), meAvatarText: document.getElementById('meAvatarText'), meName: document.getElementById('meName'), mePresence: document.getElementById('mePresence'), hostCrown: document.getElementById('hostCrown'),
-      adminTick: document.getElementById('adminTick'), adminBadge: document.getElementById('adminBadge'),
-      myFriendCode: document.getElementById('myFriendCode'), copyFriendCodeBtn: document.getElementById('copyFriendCodeBtn'),
-      friendSearch: document.getElementById('friendSearch'), friendStatus: document.getElementById('friendStatus'), friendsList: document.getElementById('friendsList'),
-      requestList: document.getElementById('requestList'), inviteList: document.getElementById('inviteList'),
-      roomName: document.getElementById('roomName'), roomDesc: document.getElementById('roomDesc'), roomVisibility: document.getElementById('roomVisibility'), roomMax: document.getElementById('roomMax'), roomStatus: document.getElementById('roomStatus'),
-      joinCode: document.getElementById('joinCode'), copyJoinCodeBtn: document.getElementById('copyJoinCodeBtn'), roomList: document.getElementById('roomList'),
-      activeRoomName: document.getElementById('activeRoomName'), activeRoomMeta: document.getElementById('activeRoomMeta'),
-      chat: document.getElementById('chat'), msgInput: document.getElementById('msgInput'), composeStatus: document.getElementById('composeStatus'), replyBar: document.getElementById('replyBar'),
-      memberPill: document.getElementById('memberPill'), typingPill: document.getElementById('typingPill'), activityPill: document.getElementById('activityPill'),
+      meAvatarText: document.getElementById('meAvatarText'),
+      meName: document.getElementById('meName'),
+      mePresence: document.getElementById('mePresence'),
+      hostCrown: document.getElementById('hostCrown'),
+      adminTick: document.getElementById('adminTick'),
+      adminBadge: document.getElementById('adminBadge'),
+      myFriendCode: document.getElementById('myFriendCode'),
+      copyFriendCodeBtn: document.getElementById('copyFriendCodeBtn'),
+      friendSearch: document.getElementById('friendSearch'),
+      friendStatus: document.getElementById('friendStatus'),
+      friendsList: document.getElementById('friendsList'),
+      requestList: document.getElementById('requestList'),
+      inviteList: document.getElementById('inviteList'),
+      roomName: document.getElementById('roomName'),
+      roomDesc: document.getElementById('roomDesc'),
+      roomVisibility: document.getElementById('roomVisibility'),
+      roomMax: document.getElementById('roomMax'),
+      roomStatus: document.getElementById('roomStatus'),
+      joinCode: document.getElementById('joinCode'),
+      copyJoinCodeBtn: document.getElementById('copyJoinCodeBtn'),
+      roomList: document.getElementById('roomList'),
+      activeRoomName: document.getElementById('activeRoomName'),
+      activeRoomMeta: document.getElementById('activeRoomMeta'),
+      chat: document.getElementById('chat'),
+      msgInput: document.getElementById('msgInput'),
+      composeStatus: document.getElementById('composeStatus'),
+      replyBar: document.getElementById('replyBar'),
+      memberPill: document.getElementById('memberPill'),
+      typingPill: document.getElementById('typingPill'),
+      activityPill: document.getElementById('activityPill'),
       memberListBar: document.getElementById('memberListBar'),
-      leaveBtn: document.getElementById('leaveBtn'), closeBtn: document.getElementById('closeBtn'),
-      autoScroll: document.getElementById('autoScroll'), jumpLatest: document.getElementById('jumpLatest'), msgSearch: document.getElementById('msgSearch'), mediaInput: document.getElementById('mediaInput'), dropZone: document.getElementById('dropZone'),
-      modalWrap: document.getElementById('modalWrap'), modalTitle: document.getElementById('modalTitle'), modalBody: document.getElementById('modalBody'), modalActions: document.getElementById('modalActions'), modalDismiss: document.getElementById('modalDismiss')
+      leaveBtn: document.getElementById('leaveBtn'),
+      closeBtn: document.getElementById('closeBtn'),
+      autoScroll: document.getElementById('autoScroll'),
+      jumpLatest: document.getElementById('jumpLatest'),
+      msgSearch: document.getElementById('msgSearch'),
+      mediaInput: document.getElementById('mediaInput'),
+      dropZone: document.getElementById('dropZone'),
+      modalWrap: document.getElementById('modalWrap'),
+      modalTitle: document.getElementById('modalTitle'),
+      modalBody: document.getElementById('modalBody'),
+      modalActions: document.getElementById('modalActions'),
+      modalDismiss: document.getElementById('modalDismiss'),
+      adminModalWrap: document.getElementById('adminModalWrap'),
+      adminUser: document.getElementById('adminUser'),
+      adminPass: document.getElementById('adminPass'),
+      adminLoginBtn: document.getElementById('adminLoginBtn'),
+      adminLoginStatus: document.getElementById('adminLoginStatus'),
+      adminLoginBox: document.getElementById('adminLoginBox'),
+      adminPanel: document.getElementById('adminPanel'),
+      adminUsers: document.getElementById('adminUsers'),
+      adminCloseBtn: document.getElementById('adminCloseBtn')
     };
 
     const qs = (s) => document.querySelector(s);
     const qsa = (s) => Array.from(document.querySelectorAll(s));
-    const setStatus = (node, msg, err = false) => { node.textContent = msg || ''; node.style.color = err ? '#fecaca' : '#9db0cc'; };
+    const setStatus = (node, msg, err = false) => {
+      node.textContent = msg || '';
+      node.style.color = err ? '#fecaca' : '#9db0cc';
+    };
+
+    function passwordScore(pass) {
+      let score = 0;
+      if (pass.length >= 8) score++;
+      if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++;
+      if (/\d/.test(pass)) score++;
+      if (/[^A-Za-z0-9]/.test(pass)) score++;
+      return score;
+    }
+
+    function renderPasswordStrength() {
+      const p = el.suPass.value || '';
+      const score = passwordScore(p);
+      const labels = ['Very weak', 'Weak', 'Okay', 'Strong', 'Very strong'];
+      el.passwordStrength.textContent = `Password strength: ${labels[score]}`;
+    }
 
     function showAuth(login = false) {
       el.authView.classList.remove('hidden');
@@ -516,13 +687,14 @@
       el.authView.classList.add('hidden');
       el.appView.classList.remove('hidden');
       el.meName.textContent = state.me.username;
-      el.meAvatarText.textContent = state.me.username.slice(0,2).toUpperCase();
+      el.meAvatarText.textContent = state.me.username.slice(0, 2).toUpperCase();
       el.mePresence.textContent = 'online';
       el.adminTick.classList.toggle('hidden', !state.adminMode);
-      el.adminBadge.classList.add('hidden');
+      el.adminBadge.classList.toggle('hidden', !state.adminMode);
       el.myFriendCode.textContent = `Friend code: ${state.me.friend_code || friendCodeFromUsername(state.me.username)}`;
       setRoomOpenUI(false);
     }
+
     function setRoomOpenUI(isOpen) {
       el.content.classList.toggle('room-closed', !isOpen);
     }
@@ -544,6 +716,7 @@
       if (clean.length <= 4) return clean;
       return `${clean.slice(0, 4)}-${clean.slice(4, 8)}`;
     }
+
     function normalizeRoomCode(code) {
       return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
     }
@@ -624,19 +797,40 @@
 
     function roomCode() {
       const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      return [...Array(8)].map(() => a[Math.floor(Math.random()*a.length)]).join('');
+      return [...Array(8)].map(() => a[Math.floor(Math.random() * a.length)]).join('');
     }
 
     function messagePayload(body, extra = {}) {
-      return JSON.stringify({ body, edited_at: null, deleted: false, reactions: {}, reply_to: null, ...extra });
+      return JSON.stringify({
+        body,
+        edited_at: null,
+        deleted: false,
+        reactions: {},
+        reply_to: null,
+        ...extra
+      });
     }
 
     function parseMessage(raw) {
-      try { const p = JSON.parse(raw.message); return { ...raw, payload: p }; }
-      catch { return { ...raw, payload: { body: raw.message, deleted: false, reactions: {}, reply_to: null } }; }
+      try {
+        const p = JSON.parse(raw.message);
+        return { ...raw, payload: p };
+      } catch {
+        return {
+          ...raw,
+          payload: { body: raw.message, deleted: false, reactions: {}, reply_to: null }
+        };
+      }
     }
 
-    function fmtTime(ts) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    function fmtTime(ts) {
+      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function fetchBans() {
+      const raw = JSON.parse(localStorage.getItem('chat_banned_users') || '{}');
+      state.bannedUsers = raw;
+    }
 
     async function refreshFriends() {
       const me = state.me.username;
@@ -645,8 +839,19 @@
       state.friends = names;
       renderFriends();
 
-      let reqQuery = await sb.from('friend_requests').select('*').eq('to_user', me).eq('status', 'pending').order('created_at', { ascending: false });
-      if (reqQuery.error) reqQuery = await sb.from('friend_requests').select('*').eq('to_user', me).eq('status', 'pending');
+      let reqQuery = await sb.from('friend_requests')
+        .select('*')
+        .eq('to_user', me)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (reqQuery.error) {
+        reqQuery = await sb.from('friend_requests')
+          .select('*')
+          .eq('to_user', me)
+          .eq('status', 'pending');
+      }
+
       state.reqs = reqQuery.data || [];
       for (const req of state.reqs) {
         if (!state.lastReqIds.has(req.id)) {
@@ -666,8 +871,19 @@
 
     async function refreshInvites() {
       if (!state.me) return;
-      let inviteQuery = await sb.from('room_invites').select('*').eq('to_username', state.me.username).eq('status', 'pending').order('created_at', { ascending: false });
-      if (inviteQuery.error) inviteQuery = await sb.from('room_invites').select('*').eq('to_username', state.me.username).eq('status', 'pending');
+      let inviteQuery = await sb.from('room_invites')
+        .select('*')
+        .eq('to_username', state.me.username)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (inviteQuery.error) {
+        inviteQuery = await sb.from('room_invites')
+          .select('*')
+          .eq('to_username', state.me.username)
+          .eq('status', 'pending');
+      }
+
       state.invites = inviteQuery.data || [];
       for (const inv of state.invites) {
         if (!state.lastInviteIds.has(inv.id)) {
@@ -695,20 +911,29 @@
         sb.from('room_access').select('room_code,visibility').eq('visibility', 'public')
       ]);
 
-      const codes = [...new Set([...(memberRows || []).map(r => r.room_code), ...(inviteRows || []).map(r => r.room_code), ...(publicRooms || []).map(r => r.room_code)])];
+      const codes = [...new Set([
+        ...(memberRows || []).map(r => r.room_code),
+        ...(inviteRows || []).map(r => r.room_code),
+        ...(publicRooms || []).map(r => r.room_code)
+      ])];
+
       let joined = [];
       if (codes.length) {
         const { data } = await sb.from('rooms').select('*').in('room_code', codes).eq('is_active', true);
         joined = data || [];
       }
+
       const merged = [...(own || []), ...joined.filter(r => r.host_username !== me)];
-      const allRooms = [...new Map(merged.map((r) => [r.room_code, r])).values()].sort((a,b) => new Date(b.created_at)-new Date(a.created_at));
+      const allRooms = [...new Map(merged.map((r) => [r.room_code, r])).values()]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
       const allCodes = allRooms.map((r) => r.room_code);
       let visMap = {};
       if (allCodes.length) {
         const { data: accessRows } = await sb.from('room_access').select('room_code,visibility').in('room_code', allCodes);
         visMap = Object.fromEntries((accessRows || []).map((a) => [a.room_code, a.visibility]));
       }
+
       state.roomList = allRooms.map((r) => ({ ...r, visibility: visMap[r.room_code] || 'private' }));
       state.memberRoomCodes = new Set(codes);
       renderRoomList();
@@ -719,10 +944,11 @@
         el.friendsList.innerHTML = '<div class="tiny">No accepted friends yet.</div>';
         return;
       }
+
       el.friendsList.innerHTML = state.friends.map((u) => `
         <div class="row-item">
           <strong>@${u}</strong>
-          <div style="display:flex; gap:6px; margin-top:6px;">
+          <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
             <button data-dm="${u}" class="soft" style="width:auto;">Message</button>
             ${state.room ? `<button data-invite-user="${u}" class="soft" style="width:auto;">Invite</button>` : ''}
           </div>
@@ -771,7 +997,7 @@
         <div class="row-item">
           <div><strong>${r.room_name}</strong> <span class="tiny">(${r.room_code})</span></div>
           <div class="tiny">host: @${r.host_username} • ${new Date(r.created_at).toLocaleDateString()} ${r.visibility ? `• ${r.visibility}` : ''}</div>
-          <div style="display:flex; gap:6px; margin-top:6px;">
+          <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;">
             <button data-join-room="${r.room_code}" class="primary" style="width:auto;">Join</button>
             <button data-copy-room="${r.room_code}" class="soft" style="width:auto;">Copy code</button>
             <button data-mute-room="${r.room_code}" class="soft" style="width:auto;">${state.mutedRooms.has(r.room_code) ? 'Unmute' : 'Mute'}</button>
@@ -785,17 +1011,30 @@
       return text.replace(/@([a-zA-Z0-9_]+)/g, '<span style="color:#93c5fd;">@$1</span>');
     }
 
+    function renderMediaInner(media) {
+      if (!media?.data) return '';
+      if (media.kind === 'image') return `<img class="media" src="${media.data}" alt="${media.name || 'image'}" />`;
+      if (media.kind === 'video') return `<video class="media" controls src="${media.data}"></video>`;
+      return `<a href="${media.data}" download="${media.name || 'file'}" style="color:#93c5fd;">📎 ${media.name || 'file'}</a>`;
+    }
+
     function renderChat() {
       const query = el.msgSearch.value.trim().toLowerCase();
       const rows = state.messages.filter((m) => !query || JSON.stringify(m.payload).toLowerCase().includes(query));
+
       el.chat.innerHTML = rows.map((m) => {
         const self = m.username === state.me.username;
         const sys = m.message_type === 'system';
         const deleted = !!m.payload.deleted;
-        const body = deleted ? '<i>Message deleted</i>' : decorateMentions((m.payload.body || '').replace(/</g,'&lt;'));
-        const reply = m.payload.reply_to ? `<div class="quoted">Replying to @${m.payload.reply_to.username}: ${(m.payload.reply_to.body || '').slice(0,80)}</div>` : '';
+        const body = deleted ? '<i>Message deleted</i>' : decorateMentions((m.payload.body || '').replace(/</g, '&lt;'));
+        const reply = m.payload.reply_to
+          ? `<div class="quoted">Replying to @${m.payload.reply_to.username}: ${(m.payload.reply_to.body || '').slice(0, 80)}</div>`
+          : '';
         const media = renderMediaInner(m.payload.media);
-        const reacts = Object.entries(m.payload.reactions || {}).map(([emo, users]) => `<span class="pill">${emo} ${users.length}</span>`).join('');
+        const reacts = Object.entries(m.payload.reactions || {})
+          .map(([emo, users]) => `<span class="pill">${emo} ${users.length}</span>`)
+          .join('');
+
         const actions = sys || deleted ? '' : `
           <div class="actions">
             <button data-reply="${m.id}">Reply</button>
@@ -807,6 +1046,7 @@
             ${self ? `<button data-edit="${m.id}">Edit</button>` : ''}
           </div>
         `;
+
         return `
           <div class="msg ${self ? 'self' : ''} ${sys ? 'system' : ''}" id="m-${m.id}">
             <div class="meta">${sys ? 'system' : '@' + m.username} • ${fmtTime(m.created_at)} ${m.payload.edited_at ? '• edited' : ''}</div>
@@ -816,29 +1056,30 @@
           </div>
         `;
       }).join('');
+
       if (el.autoScroll.checked) el.chat.scrollTop = el.chat.scrollHeight;
     }
 
-    function renderMediaInner(media) {
-      if (!media?.data) return '';
-      if (media.kind === 'image') return `<img class="media" src="${media.data}" alt="${media.name || 'image'}" />`;
-      if (media.kind === 'video') return `<video class="media" controls src="${media.data}"></video>`;
-      return `<a href="${media.data}" download="${media.name || 'file'}" style="color:#93c5fd;">📎 ${media.name || 'file'}</a>`;
-    }
-
     async function sendSystem(room, body) {
-      await sb.from('messages').insert({ username: 'system', room, message: messagePayload(body), message_type: 'system' });
+      await sb.from('messages').insert({
+        username: 'system',
+        room,
+        message: messagePayload(body),
+        message_type: 'system'
+      });
     }
 
     async function canJoinRoom(roomRow) {
       if (!roomRow || !roomRow.is_active) return { ok: false, reason: 'Room closed.' };
       const me = state.me.username;
+
       const [{ data: member }, { data: accessRows }, { data: invite }, { data: kick }] = await Promise.all([
         sb.from('members').select('id').eq('room_code', roomRow.room_code).eq('username', me).maybeSingle(),
         sb.from('room_access').select('*').eq('room_code', roomRow.room_code),
-        sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).in('status', ['pending','accepted']).maybeSingle(),
+        sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).in('status', ['pending', 'accepted']).maybeSingle(),
         sb.from('room_invites').select('*').eq('room_code', roomRow.room_code).eq('to_username', me).eq('status', 'kicked').maybeSingle()
       ]);
+
       if (kick?.data) return { ok: false, reason: 'You were kicked from this room.' };
       if (member?.data) return { ok: true };
       if (roomRow.host_username === me) return { ok: true };
@@ -849,9 +1090,7 @@
         if (!invite?.data) return { ok: false, reason: 'Invite required.' };
         return { ok: true };
       }
-      if (access.visibility === 'public') {
-        return { ok: true };
-      }
+      if (access.visibility === 'public') return { ok: true };
 
       if (access.visibility === 'friends') {
         const [{ data: hostMember }, { data: frA }, { data: frB }] = await Promise.all([
@@ -888,9 +1127,8 @@
         .channel(`room:${roomCode}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `room_code=eq.${roomCode}` }, async (payload) => {
           if (payload.new.is_active === false) {
-            await sendSystem(roomCode, 'Room closed by host.');
-            alert('Room was closed.');
             await forceLeaveRoom(false);
+            alert('Room was closed.');
             return;
           }
           await loadRoom(roomCode);
@@ -908,20 +1146,25 @@
         .subscribe();
 
       state.subscriptions = [msgSub, memSub, roomSub, typingSub];
+      state.typingChannelRef = sb.channel(`typing:${roomCode}`);
     }
 
     function unsubscribeAll() {
       state.subscriptions.forEach((s) => { try { sb.removeChannel(s); } catch {} });
       state.subscriptions = [];
       state.typingUsers.clear();
+      state.typingChannelRef = null;
+      el.typingPill.textContent = 'typing: none';
     }
 
     async function loadRoom(code) {
       const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
       if (!room) return;
+
       state.room = room;
       const { data: accessRows } = await sb.from('room_access').select('*').eq('room_code', code);
       state.roomAccess = accessRows?.[0] || { visibility: 'private' };
+
       el.activeRoomName.textContent = room.room_name;
       el.activeRoomMeta.textContent = `${code} • ${state.roomAccess.visibility} • host @${room.host_username}`;
       el.leaveBtn.classList.remove('hidden');
@@ -935,12 +1178,15 @@
       state.members = data || [];
       const online = state.members.filter(m => m.is_online).length;
       el.memberPill.textContent = `members: ${state.members.length} (${online} online)`;
+
       el.memberListBar.innerHTML = state.members.map((m) => `
         <span class="pill ${m.is_online ? 'on' : 'off'}" style="margin-right:6px; margin-bottom:4px; display:inline-flex;">
           ${m.is_host ? '👑' : '👤'} @${m.username}
+          ${m.is_host ? `<span class="badge-host">Host</span>` : ''}
           ${(isHost() && m.username !== state.me.username) ? `<button data-kick="${m.username}" style="width:auto; margin:0 0 0 5px; padding:2px 6px;">Kick</button>` : ''}
         </span>
       `).join('') || '<span class="tiny">No members yet.</span>';
+
       if (state.room) {
         const host = state.members.find(m => m.is_host);
         if (host && host.username !== state.room.host_username) {
@@ -966,18 +1212,37 @@
     }
 
     async function joinRoom(code) {
+      if (state.bannedUsers[state.me.username]) return setStatus(el.roomStatus, 'You are banned.', true);
+
       const { data: room } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
       if (!room) return setStatus(el.roomStatus, 'Room not found.', true);
+
       const access = await canJoinRoom(room);
       if (!access.ok) return setStatus(el.roomStatus, access.reason, true);
 
       const { data: hostEntry } = await sb.from('members').select('*').eq('room_code', code).eq('username', room.host_username).maybeSingle();
       if (!hostEntry) {
-        await sb.from('members').upsert({ room_code: code, username: room.host_username, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
+        await sb.from('members').upsert({
+          room_code: code,
+          username: room.host_username,
+          is_host: true,
+          is_online: true
+        }, { onConflict: 'room_code,username' });
       }
 
-      await sb.from('members').upsert({ room_code: code, username: state.me.username, is_host: false, is_online: true }, { onConflict: 'room_code,username' });
-      await sb.from('room_invites').update({ status: 'accepted' }).eq('room_code', code).eq('to_username', state.me.username).eq('status', 'pending');
+      await sb.from('members').upsert({
+        room_code: code,
+        username: state.me.username,
+        is_host: room.host_username === state.me.username,
+        is_online: true
+      }, { onConflict: 'room_code,username' });
+
+      await sb.from('room_invites')
+        .update({ status: 'accepted' })
+        .eq('room_code', code)
+        .eq('to_username', state.me.username)
+        .eq('status', 'pending');
+
       await sendSystem(code, `@${state.me.username} joined the room.`);
 
       await loadRoom(code);
@@ -989,11 +1254,20 @@
     }
 
     async function createRoom() {
+      if (state.bannedUsers[state.me.username]) return setStatus(el.roomStatus, 'You are banned.', true);
+
       const room_name = el.roomName.value.trim();
       if (!room_name) return setStatus(el.roomStatus, 'Room name required.', true);
+
       const room_code = roomCode();
       const me = state.me.username;
-      const { error } = await sb.from('rooms').insert({ room_code, room_name, host_username: me, is_active: true });
+
+      const { error } = await sb.from('rooms').insert({
+        room_code,
+        room_name,
+        host_username: me,
+        is_active: true
+      });
       if (error) return setStatus(el.roomStatus, error.message, true);
 
       await sb.from('room_access').upsert({
@@ -1005,11 +1279,18 @@
         announcements_only: false
       }, { onConflict: 'room_code' });
 
-      await sb.from('members').upsert({ room_code, username: me, is_host: true, is_online: true }, { onConflict: 'room_code,username' });
+      await sb.from('members').upsert({
+        room_code,
+        username: me,
+        is_host: true,
+        is_online: true
+      }, { onConflict: 'room_code,username' });
+
       await sendSystem(room_code, `Room created by @${me}.`);
       await refreshRooms();
       await joinRoom(room_code);
-      el.roomName.value = ''; el.roomDesc.value = '';
+      el.roomName.value = '';
+      el.roomDesc.value = '';
     }
 
     async function safeHostTransferOrClose() {
@@ -1018,11 +1299,13 @@
       const me = state.me.username;
       const { data: remain } = await sb.from('members').select('*').eq('room_code', code).neq('username', me).order('joined_at', { ascending: true });
       const candidates = (remain || []).filter((m) => m.is_online);
+
       if (!candidates.length) {
         await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
         await sendSystem(code, 'Room closed because host left and no online members remained.');
         return 'closed';
       }
+
       const next = candidates[0];
       await sb.from('members').update({ is_host: false }).eq('room_code', code).eq('username', me);
       await sb.from('members').update({ is_host: true }).eq('room_code', code).eq('username', next.username);
@@ -1037,13 +1320,18 @@
       const me = state.me.username;
 
       if (isHost()) await safeHostTransferOrClose();
+
       if (markOffline) {
         await sb.from('members').delete().eq('room_code', code).eq('username', me);
         await sendSystem(code, `@${me} left the room.`);
       }
 
       unsubscribeAll();
-      state.room = null; state.roomAccess = null; state.members = []; state.messages = [];
+      state.room = null;
+      state.roomAccess = null;
+      state.members = [];
+      state.messages = [];
+
       el.activeRoomName.textContent = 'No room joined';
       el.activeRoomMeta.textContent = 'Start with your friends, not public lobbies.';
       el.leaveBtn.classList.add('hidden');
@@ -1060,6 +1348,7 @@
     async function closeRoom() {
       if (!state.room || !isHost()) return;
       if (!confirm('Close room for everyone?')) return;
+
       await sb.from('rooms').update({ is_active: false }).eq('room_code', state.room.room_code);
       await sendSystem(state.room.room_code, 'Room closed by host.');
       await forceLeaveRoom(false);
@@ -1068,6 +1357,7 @@
     async function hideRoomFromList(code) {
       const room = state.roomList.find((r) => r.room_code === code);
       if (!room) return;
+
       if (room.host_username === state.me.username) {
         if (!confirm(`Delete room ${code} for everyone?`)) return;
         await sb.from('rooms').update({ is_active: false }).eq('room_code', code);
@@ -1077,17 +1367,35 @@
         await sb.from('members').delete().eq('room_code', code).eq('username', state.me.username);
         if (state.room?.room_code === code) await forceLeaveRoom(false);
       }
+
       await refreshRooms();
       setStatus(el.roomStatus, room.host_username === state.me.username ? 'Room deleted.' : 'Room hidden.');
     }
 
     async function sendTextMessage() {
       if (!state.room) return setStatus(el.composeStatus, 'Join a room first.', true);
+      if (state.bannedUsers[state.me.username]) return setStatus(el.composeStatus, 'You are banned.', true);
+
       const txt = el.msgInput.value.trim();
       if (!txt) return;
 
-      const payload = { body: txt, reply_to: state.replyTo ? { id: state.replyTo.id, username: state.replyTo.username, body: state.replyTo.payload.body } : null, delivery: 'sent' };
-      const { error } = await sb.from('messages').insert({ username: state.me.username, room: state.room.room_code, message: messagePayload(txt, payload), message_type: 'text' });
+      const payload = {
+        body: txt,
+        reply_to: state.replyTo ? {
+          id: state.replyTo.id,
+          username: state.replyTo.username,
+          body: state.replyTo.payload.body
+        } : null,
+        delivery: 'sent'
+      };
+
+      const { error } = await sb.from('messages').insert({
+        username: state.me.username,
+        room: state.room.room_code,
+        message: messagePayload(txt, payload),
+        message_type: 'text'
+      });
+
       if (error) {
         setStatus(el.composeStatus, 'Send failed, retrying...', true);
         setTimeout(sendTextMessage, 1200);
@@ -1107,18 +1415,22 @@
 
     async function sendMedia(file) {
       if (!state.room || !file) return;
+      if (state.bannedUsers[state.me.username]) return setStatus(el.composeStatus, 'You are banned.', true);
       if (file.size > 6 * 1024 * 1024) return setStatus(el.composeStatus, 'Max file size is 6MB for lightweight mode.', true);
+
       const reader = new FileReader();
       reader.onload = async () => {
         const kind = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
         const media = { kind, name: file.name, type: file.type || 'application/octet-stream', data: reader.result };
         const body = kind === 'image' ? '📷 Photo' : kind === 'video' ? '🎬 Video' : '📎 File';
+
         const { error } = await sb.from('messages').insert({
           username: state.me.username,
           room: state.room.room_code,
           message: messagePayload(body, { body, media, delivery: 'sent' }),
           message_type: kind
         });
+
         if (error) return setStatus(el.composeStatus, error.message, true);
         setStatus(el.composeStatus, 'Media sent.');
       };
@@ -1136,9 +1448,16 @@
     async function kickUser(username) {
       if (!isHost() || !state.room || username === state.me.username) return;
       if (!confirm(`Kick @${username}?`)) return;
+
       const code = state.room.room_code;
       await sb.from('members').delete().eq('room_code', code).eq('username', username);
-      await sb.from('room_invites').upsert({ room_code: code, from_username: state.me.username, to_username: username, status: 'kicked', expires_at: null }, { onConflict: 'room_code,to_username' });
+      await sb.from('room_invites').upsert({
+        room_code: code,
+        from_username: state.me.username,
+        to_username: username,
+        status: 'kicked',
+        expires_at: null
+      }, { onConflict: 'room_code,to_username' });
       await sendSystem(code, `@${username} was kicked.`);
     }
 
@@ -1146,20 +1465,38 @@
       const pair = [state.me.username, friend].sort();
       const code = `DM_${pair.join('_').slice(0, 18).toUpperCase()}`;
       const roomName = `DM: ${pair[0]} & ${pair[1]}`;
+
       const { data: ex } = await sb.from('rooms').select('*').eq('room_code', code).maybeSingle();
       if (!ex) {
-        await sb.from('rooms').insert({ room_code: code, room_name: roomName, host_username: pair[0], is_active: true });
-        await sb.from('room_access').upsert({ room_code: code, visibility: 'invite', description: 'Direct friend message', max_members: 2 }, { onConflict: 'room_code' });
-        await sb.from('room_invites').upsert({ room_code: code, from_username: state.me.username, to_username: friend, status: 'accepted' }, { onConflict: 'room_code,to_username' });
+        await sb.from('rooms').insert({
+          room_code: code,
+          room_name: roomName,
+          host_username: pair[0],
+          is_active: true
+        });
+        await sb.from('room_access').upsert({
+          room_code: code,
+          visibility: 'invite',
+          description: 'Direct friend message',
+          max_members: 2
+        }, { onConflict: 'room_code' });
+        await sb.from('room_invites').upsert({
+          room_code: code,
+          from_username: state.me.username,
+          to_username: friend,
+          status: 'accepted'
+        }, { onConflict: 'room_code,to_username' });
       }
+
       await joinRoom(code);
     }
 
     async function acceptFriendRequest(id) {
       const req = state.reqs.find((r) => r.id === Number(id));
       if (!req) return;
+
       await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', req.id);
-      const [a,b] = [req.from_user, req.to_user].sort();
+      const [a, b] = [req.from_user, req.to_user].sort();
       await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
       await refreshFriends();
     }
@@ -1185,15 +1522,24 @@
 
     async function refreshRoomMessageAlerts() {
       if (!state.me) return;
+
       const { data: memberships } = await sb.from('members').select('room_code').eq('username', state.me.username);
       const codes = [...new Set((memberships || []).map((m) => m.room_code))];
       state.memberRoomCodes = new Set(codes);
+
       await Promise.all(codes.map(async (code) => {
-        const { data: row } = await sb.from('messages').select('id,username,created_at,message_type').eq('room', code).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const { data: row } = await sb.from('messages')
+          .select('id,username,created_at,message_type')
+          .eq('room', code)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
         if (!row || row.username === state.me.username || row.message_type === 'system') return;
         const prev = state.seenMessageIds[code];
         state.seenMessageIds[code] = row.id;
         if (!prev || prev === row.id || state.room?.room_code === code || state.mutedRooms.has(code)) return;
+
         enqueueModal({
           title: 'New room message',
           body: `@${row.username} sent a new message in room <strong>${code}</strong>.`,
@@ -1207,6 +1553,7 @@
       if (state.globalSub) {
         try { sb.removeChannel(state.globalSub); } catch {}
       }
+
       const me = state.me.username;
       state.globalSub = sb.channel(`global:${me}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests', filter: `to_user=eq.${me}` }, async () => {
@@ -1221,9 +1568,11 @@
           if (row.username === me || row.message_type === 'system') return;
           if (!state.memberRoomCodes.has(row.room) || state.mutedRooms.has(row.room)) return;
           if (state.room?.room_code === row.room) return;
+
           const prev = state.seenMessageIds[row.room];
           state.seenMessageIds[row.room] = row.id;
           if (prev === row.id) return;
+
           enqueueModal({
             title: 'New room message',
             body: `@${row.username} sent a new message in room <strong>${row.room}</strong>.`,
@@ -1236,6 +1585,7 @@
     async function signup() {
       const username = el.suUser.value.trim().toLowerCase();
       const password = el.suPass.value;
+
       if (!/^[a-z0-9_]{3,24}$/.test(username)) return setStatus(el.suStatus, 'Username: 3-24 chars [a-z0-9_].', true);
       if (!password || password.length < 3) return setStatus(el.suStatus, 'Password must be at least 3 characters.', true);
 
@@ -1244,8 +1594,16 @@
 
       const friend_code = friendCodeFromUsername(username);
       const password_hash = await sha256(password);
-      const { error } = await sb.from('users').upsert({ username, password_hash, friend_code, created_at: new Date().toISOString(), last_seen: new Date().toISOString() }, { onConflict: 'username' });
+      const { error } = await sb.from('users').upsert({
+        username,
+        password_hash,
+        friend_code,
+        created_at: new Date().toISOString(),
+        last_seen: new Date().toISOString()
+      }, { onConflict: 'username' });
+
       if (error) return setStatus(el.suStatus, error.message, true);
+
       setStatus(el.suStatus, 'Account created. Log in now.');
       el.suPass.value = '';
       showAuth(true);
@@ -1255,29 +1613,47 @@
       const username = el.liUser.value.trim().toLowerCase();
       const password = el.liPass.value;
       if (!password) return setStatus(el.liStatus, 'Enter password.', true);
-      const isAdminLogin = username === 'p' && password === 'p';
+
+      await fetchBans();
+
+      if (state.bannedUsers[username] && !(username === ADMIN_USER && password === ADMIN_PASS)) {
+        return setStatus(el.liStatus, 'This account is banned.', true);
+      }
+
+      const isAdminLogin = username === ADMIN_USER && password === ADMIN_PASS;
       if (isAdminLogin) {
         await sb.from('users').upsert({
-          username: 'p',
-          password_hash: await sha256('p'),
-          friend_code: friendCodeFromUsername('p'),
+          username: ADMIN_USER,
+          password_hash: await sha256(ADMIN_PASS),
+          friend_code: friendCodeFromUsername(ADMIN_USER),
           created_at: new Date().toISOString(),
           last_seen: new Date().toISOString(),
           is_online: true
         }, { onConflict: 'username' });
       }
+
       const { data: user } = await sb.from('users').select('*').eq('username', username).maybeSingle();
       if (!user) return setStatus(el.liStatus, 'Account not found. Sign up first.', true);
+
       const hashed = await sha256(password);
       if (user.password_hash && user.password_hash !== hashed) return setStatus(el.liStatus, 'Incorrect password.', true);
       if (!user.password_hash) await sb.from('users').update({ password_hash: hashed }).eq('username', username);
 
-      state.me = { username, friend_code: user.friend_code || friendCodeFromUsername(username) };
+      state.me = {
+        username,
+        friend_code: user.friend_code || friendCodeFromUsername(username)
+      };
       state.adminMode = isAdminLogin;
+
       if (!user.friend_code) {
         await sb.from('users').update({ friend_code: state.me.friend_code }).eq('username', username);
       }
-      await sb.from('users').update({ last_seen: new Date().toISOString(), is_online: true }).eq('username', username);
+
+      await sb.from('users').update({
+        last_seen: new Date().toISOString(),
+        is_online: true
+      }).eq('username', username);
+
       el.liPass.value = '';
       showApp();
       await bootstrapAfterAuth();
@@ -1285,7 +1661,12 @@
 
     async function logout() {
       if (state.room) await forceLeaveRoom();
-      if (state.me) await sb.from('users').update({ is_online: false, last_seen: new Date().toISOString() }).eq('username', state.me.username);
+      if (state.me) {
+        await sb.from('users').update({
+          is_online: false,
+          last_seen: new Date().toISOString()
+        }).eq('username', state.me.username);
+      }
       if (state.globalSub) {
         try { sb.removeChannel(state.globalSub); } catch {}
         state.globalSub = null;
@@ -1296,37 +1677,92 @@
     }
 
     async function bootstrapAfterAuth() {
-      await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
+      await fetchBans();
+      await Promise.all([
+        refreshFriends(),
+        refreshInvites(),
+        refreshRooms(),
+        refreshRoomMessageAlerts()
+      ]);
       subscribeGlobalNotifications();
+
       const refreshTicker = setInterval(async () => {
         if (!state.me) return clearInterval(refreshTicker);
-        await Promise.all([refreshFriends(), refreshInvites(), refreshRooms(), refreshRoomMessageAlerts()]);
+        await fetchBans();
+        await Promise.all([
+          refreshFriends(),
+          refreshInvites(),
+          refreshRooms(),
+          refreshRoomMessageAlerts()
+        ]);
       }, 8000);
     }
 
-    // Events
+    async function renderAdminPanel() {
+      const { data: users } = await sb.from('users').select('*').order('username', { ascending: true });
+      const banned = JSON.parse(localStorage.getItem('chat_banned_users') || '{}');
+
+      el.adminUsers.innerHTML = '';
+      (users || []).forEach((u) => {
+        const row = document.createElement('div');
+        row.className = 'admin-list-row';
+        const isBanned = !!banned[u.username];
+        row.innerHTML = `
+          <div>
+            <strong>${u.username}</strong>
+            <div class="tiny">${u.is_online ? 'Online' : 'Offline'} • ${u.friend_code || '-'}</div>
+          </div>
+        `;
+
+        const controls = document.createElement('div');
+        const banBtn = document.createElement('button');
+        banBtn.className = 'danger';
+        banBtn.style.width = 'auto';
+        banBtn.textContent = isBanned ? 'Unban' : 'Ban';
+        banBtn.onclick = async () => {
+          const db = JSON.parse(localStorage.getItem('chat_banned_users') || '{}');
+          if (db[u.username]) delete db[u.username];
+          else db[u.username] = true;
+          localStorage.setItem('chat_banned_users', JSON.stringify(db));
+          await fetchBans();
+          await renderAdminPanel();
+        };
+
+        controls.appendChild(banBtn);
+        row.appendChild(controls);
+        el.adminUsers.appendChild(row);
+      });
+    }
+
     qs('#gotoLogin').onclick = () => showAuth(true);
     qs('#gotoSignup').onclick = () => showAuth(false);
     qs('#signupBtn').onclick = signup;
     qs('#loginBtn').onclick = login;
+
+    el.suPass.addEventListener('input', renderPasswordStrength);
+
     el.suTogglePass.onclick = () => {
       const hide = el.suPass.type === 'text';
       el.suPass.type = hide ? 'password' : 'text';
       el.suTogglePass.textContent = hide ? 'Show' : 'Hide';
     };
+
     el.liTogglePass.onclick = () => {
       const hide = el.liPass.type === 'text';
       el.liPass.type = hide ? 'password' : 'text';
       el.liTogglePass.textContent = hide ? 'Show' : 'Hide';
     };
+
     qs('#logoutBtn').onclick = logout;
     el.modalDismiss.onclick = closeModal;
+
     el.copyFriendCodeBtn.onclick = async () => {
       const code = state.me?.friend_code;
       if (!code) return;
       await navigator.clipboard.writeText(code);
       setStatus(el.friendStatus, 'Friend code copied!');
     };
+
     el.copyJoinCodeBtn.onclick = async () => {
       const code = normalizeRoomCode(el.joinCode.value);
       if (!code) return setStatus(el.roomStatus, 'Enter room code first.', true);
@@ -1335,7 +1771,8 @@
     };
 
     qsa('.tab').forEach((b) => b.onclick = () => {
-      qsa('.tab').forEach((x) => x.classList.remove('active')); b.classList.add('active');
+      qsa('.tab').forEach((x) => x.classList.remove('active'));
+      b.classList.add('active');
       const tab = b.dataset.tab;
       qs('#paneFriends').classList.toggle('hidden', tab !== 'friends');
       qs('#paneRooms').classList.toggle('hidden', tab !== 'rooms');
@@ -1345,28 +1782,61 @@
     qs('#sendReqBtn').onclick = async () => {
       const code = normalizeFriendCode(el.friendSearch.value);
       if (!code) return setStatus(el.friendStatus, 'Enter a friend code.', true);
+
       let userQuery = await sb.from('users').select('username,friend_code').eq('friend_code', code).limit(1);
       if (userQuery.error || !userQuery.data?.length) {
         userQuery = await sb.from('users').select('username,friend_code').ilike('friend_code', code).limit(1);
       }
+
       const user = userQuery.data?.[0];
       if (!user) return setStatus(el.friendStatus, 'User not found.', true);
+
       const to = user.username;
       if (to === state.me.username) return setStatus(el.friendStatus, 'That is your code.', true);
-      const [a,b] = [state.me.username, to].sort();
+
+      const [a, b] = [state.me.username, to].sort();
       const { data: alreadyFriends } = await sb.from('friends').select('id').eq('user_a', a).eq('user_b', b).maybeSingle();
       if (alreadyFriends) return setStatus(el.friendStatus, `@${to} is already your friend.`);
-      const { data: reverseReq } = await sb.from('friend_requests').select('*').eq('from_user', to).eq('to_user', state.me.username).eq('status', 'pending').maybeSingle();
+
+      const { data: reverseReq } = await sb.from('friend_requests')
+        .select('*')
+        .eq('from_user', to)
+        .eq('to_user', state.me.username)
+        .eq('status', 'pending')
+        .maybeSingle();
+
       if (reverseReq) {
         await sb.from('friend_requests').update({ status: 'accepted' }).eq('id', reverseReq.id);
         await sb.from('friends').upsert({ user_a: a, user_b: b }, { onConflict: 'user_a,user_b' });
         await refreshFriends();
         return setStatus(el.friendStatus, `Friend added: @${to}.`);
       }
-      const { data: already } = await sb.from('friend_requests').select('id').eq('from_user', state.me.username).eq('to_user', to).eq('status', 'pending').maybeSingle();
+
+      const { data: already } = await sb.from('friend_requests')
+        .select('id')
+        .eq('from_user', state.me.username)
+        .eq('to_user', to)
+        .eq('status', 'pending')
+        .maybeSingle();
+
       if (already) return setStatus(el.friendStatus, 'Request already pending.', true);
-      let insertReq = await sb.from('friend_requests').insert({ from_user: state.me.username, to_user: to, status: 'pending', seen: false, created_at: new Date().toISOString() });
-      if (insertReq.error) insertReq = await sb.from('friend_requests').insert({ from_user: state.me.username, to_user: to, status: 'pending' });
+
+      let insertReq = await sb.from('friend_requests').insert({
+        from_user: state.me.username,
+        to_user: to,
+        status: 'pending',
+        seen: false,
+        created_at: new Date().toISOString()
+      });
+
+      if (insertReq.error) {
+        insertReq = await sb.from('friend_requests').insert({
+          from_user: state.me.username,
+          to_user: to,
+          status: 'pending'
+        });
+      }
+
       if (insertReq.error) return setStatus(el.friendStatus, insertReq.error.message, true);
       setStatus(el.friendStatus, `Request sent to @${to}.`);
       el.friendSearch.value = '';
@@ -1378,43 +1848,67 @@
       if (!code) return;
       await joinRoom(code);
     };
+
     el.friendSearch.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         qs('#sendReqBtn').click();
       }
     });
+
     el.friendSearch.addEventListener('input', () => {
       el.friendSearch.value = normalizeFriendCode(el.friendSearch.value);
     });
+
     el.joinCode.addEventListener('input', () => {
       el.joinCode.value = normalizeRoomCode(el.joinCode.value);
     });
 
     qs('#sendBtn').onclick = sendTextMessage;
+
     el.msgInput.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         await sendTextMessage();
       } else if (state.room) {
-        sb.channel(`typing:${state.room.room_code}`).send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: true } });
+        const ch = sb.channel(`typing:${state.room.room_code}`);
+        ch.send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: true } });
         clearTimeout(el.msgInput._tt);
         el.msgInput._tt = setTimeout(() => {
-          sb.channel(`typing:${state.room.room_code}`).send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: false } });
+          ch.send({ type: 'broadcast', event: 'typing', payload: { user: state.me.username, typing: false } });
         }, 850);
       }
     });
 
-    qsa('.emojiBtn').forEach((b) => b.onclick = () => { el.msgInput.value += b.dataset.emoji; el.msgInput.focus(); });
+    qsa('.emojiBtn').forEach((b) => b.onclick = () => {
+      el.msgInput.value += b.dataset.emoji;
+      el.msgInput.focus();
+    });
+
     qs('#gifBtn').onclick = async () => {
+      if (!state.room) return;
       const url = prompt('Paste GIF URL:');
       if (!url) return;
-      await sb.from('messages').insert({ username: state.me.username, room: state.room.room_code, message: messagePayload('GIF', { body: url, media: { kind: 'image', data: url, name: 'gif' } }), message_type: 'gif' });
+      await sb.from('messages').insert({
+        username: state.me.username,
+        room: state.room.room_code,
+        message: messagePayload('GIF', {
+          body: url,
+          media: { kind: 'image', data: url, name: 'gif' }
+        }),
+        message_type: 'gif'
+      });
     };
 
     el.mediaInput.addEventListener('change', (e) => sendMedia(e.target.files[0]));
-    ['dragenter','dragover'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => { e.preventDefault(); el.dropZone.classList.add('drag'); }));
-    ['dragleave','drop'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => { e.preventDefault(); el.dropZone.classList.remove('drag'); }));
+    ['dragenter', 'dragover'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      el.dropZone.classList.add('drag');
+    }));
+    ['dragleave', 'drop'].forEach((ev) => el.dropZone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      el.dropZone.classList.remove('drag');
+    }));
     el.dropZone.addEventListener('drop', (e) => sendMedia(e.dataTransfer.files[0]));
 
     el.msgSearch.addEventListener('input', renderChat);
@@ -1425,43 +1919,63 @@
       const nearBottom = el.chat.scrollHeight - (el.chat.scrollTop + el.chat.clientHeight) < 80;
       el.jumpLatest.classList.toggle('hidden', nearBottom);
     });
-    el.jumpLatest.onclick = () => { el.chat.scrollTop = el.chat.scrollHeight; el.jumpLatest.classList.add('hidden'); };
+
+    el.jumpLatest.onclick = () => {
+      el.chat.scrollTop = el.chat.scrollHeight;
+      el.jumpLatest.classList.add('hidden');
+    };
 
     el.chat.addEventListener('click', async (e) => {
       const btn = e.target.closest('button');
       if (!btn) return;
+
       if (btn.dataset.reply) {
         const m = state.messages.find(x => x.id === Number(btn.dataset.reply));
         state.replyTo = m;
         el.replyBar.classList.remove('hidden');
         el.replyBar.textContent = `Replying to @${m.username}: ${(m.payload.body || '').slice(0, 100)} (click to clear)`;
       }
+
       if (btn.dataset.react) {
         const [id, emo] = btn.dataset.react.split(':');
         await updateMessage(Number(id), (p) => {
           p.reactions ||= {};
           p.reactions[emo] ||= [];
-          if (p.reactions[emo].includes(state.me.username)) p.reactions[emo] = p.reactions[emo].filter((u) => u !== state.me.username);
-          else p.reactions[emo].push(state.me.username);
+          if (p.reactions[emo].includes(state.me.username)) {
+            p.reactions[emo] = p.reactions[emo].filter((u) => u !== state.me.username);
+          } else {
+            p.reactions[emo].push(state.me.username);
+          }
         });
       }
+
       if (btn.dataset.copy) {
         const m = state.messages.find(x => x.id === Number(btn.dataset.copy));
         await navigator.clipboard.writeText(m.payload.body || '');
       }
+
       if (btn.dataset.delete) {
         const id = Number(btn.dataset.delete);
         const m = state.messages.find(x => x.id === id);
         if (!m) return;
         if (!(m.username === state.me.username || isHost())) return;
-        await updateMessage(id, (p) => { p.deleted = true; p.body = ''; p.media = null; p.edited_at = new Date().toISOString(); });
+        await updateMessage(id, (p) => {
+          p.deleted = true;
+          p.body = '';
+          p.media = null;
+          p.edited_at = new Date().toISOString();
+        });
       }
+
       if (btn.dataset.edit) {
         const id = Number(btn.dataset.edit);
         const m = state.messages.find(x => x.id === id);
         const next = prompt('Edit message:', m.payload.body || '');
         if (next == null) return;
-        await updateMessage(id, (p) => { p.body = next; p.edited_at = new Date().toISOString(); });
+        await updateMessage(id, (p) => {
+          p.body = next;
+          p.edited_at = new Date().toISOString();
+        });
       }
     });
 
@@ -1472,7 +1986,13 @@
       const inviteUser = e.target.closest('[data-invite-user]')?.dataset.inviteUser;
       if (dm) await openDm(dm);
       if (inviteUser && state.room) {
-        await sb.from('room_invites').upsert({ room_code: state.room.room_code, from_username: state.me.username, to_username: inviteUser, status: 'pending', expires_at: null }, { onConflict: 'room_code,to_username' });
+        await sb.from('room_invites').upsert({
+          room_code: state.room.room_code,
+          from_username: state.me.username,
+          to_username: inviteUser,
+          status: 'pending',
+          expires_at: null
+        }, { onConflict: 'room_code,to_username' });
         await sendSystem(state.room.room_code, `@${inviteUser} invited by @${state.me.username}.`);
       }
     });
@@ -1496,19 +2016,21 @@
       const muteCode = e.target.closest('[data-mute-room]')?.dataset.muteRoom;
       const copyCode = e.target.closest('[data-copy-room]')?.dataset.copyRoom;
       const clearCode = e.target.closest('[data-clear-room]')?.dataset.clearRoom;
-      if (code) {
-        await joinRoom(code);
-      }
+
+      if (code) await joinRoom(code);
+
       if (muteCode) {
         if (state.mutedRooms.has(muteCode)) state.mutedRooms.delete(muteCode);
         else state.mutedRooms.add(muteCode);
         saveMutedRooms();
         renderRoomList();
       }
+
       if (copyCode) {
         await navigator.clipboard.writeText(copyCode);
         setStatus(el.roomStatus, `Room code ${copyCode} copied.`);
       }
+
       if (clearCode) {
         await hideRoomFromList(clearCode);
       }
@@ -1519,10 +2041,38 @@
       if (target) await kickUser(target);
     });
 
+    document.getElementById('openAdminPanelBtn').onclick = () => {
+      el.adminModalWrap.classList.remove('hidden');
+      el.adminLoginBox.classList.remove('hidden');
+      el.adminPanel.classList.add('hidden');
+      el.adminLoginStatus.textContent = '';
+      el.adminUser.value = '';
+      el.adminPass.value = '';
+    };
+
+    el.adminCloseBtn.onclick = () => {
+      el.adminModalWrap.classList.add('hidden');
+    };
+
+    el.adminLoginBtn.onclick = async () => {
+      const u = el.adminUser.value.trim();
+      const p = el.adminPass.value;
+      if (u !== ADMIN_USER || p !== ADMIN_PASS) {
+        return setStatus(el.adminLoginStatus, 'Invalid admin credentials.', true);
+      }
+      el.adminLoginBox.classList.add('hidden');
+      el.adminPanel.classList.remove('hidden');
+      await renderAdminPanel();
+    };
+
     setInterval(async () => {
       if (!state.room || !isHost()) return;
-      // keep host authority from backend data only
-      const { data: hostMember } = await sb.from('members').select('*').eq('room_code', state.room.room_code).eq('username', state.room.host_username).maybeSingle();
+      const { data: hostMember } = await sb.from('members')
+        .select('*')
+        .eq('room_code', state.room.room_code)
+        .eq('username', state.room.host_username)
+        .maybeSingle();
+
       if (!hostMember) {
         const fallback = state.members.find((m) => m.is_online);
         if (fallback) {
@@ -1532,9 +2082,20 @@
       }
     }, 12000);
 
-    // init
+    window.addEventListener('beforeunload', async () => {
+      try {
+        if (state.room && state.me) {
+          await sb.from('members').update({ is_online: false }).eq('room_code', state.room.room_code).eq('username', state.me.username);
+        }
+        if (state.me) {
+          await sb.from('users').update({ is_online: false, last_seen: new Date().toISOString() }).eq('username', state.me.username);
+        }
+      } catch {}
+    });
+
     (async function init() {
       await wipeCloudDataOnce();
+      renderPasswordStrength();
       showAuth(true);
     })();
   </script>
