@@ -769,6 +769,39 @@
       return `${head}-${tail}`;
     }
 
+    function randomProfileFriendCode() {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      return [...Array(6)].map(() => chars[Math.floor(Math.random() * chars.length)]).join("");
+    }
+
+    const currentUserId = () => state.me?.id || null;
+    const currentUserKey = () => state.me?.id || state.me?.username || null;
+
+    async function getAuthUserAndEnsureProfile(preferredUsername = "") {
+      const { data, error } = await sb.auth.getUser();
+      if (error) {
+        console.warn("supabase.auth.getUser failed:", error.message);
+        return null;
+      }
+      const user = data?.user;
+      if (!user) return null;
+
+      const { data: existing } = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      if (!existing) {
+        const username = (preferredUsername || user.email || "").trim() || `user_${user.id.slice(0, 8)}`;
+        await sb.from("profiles").insert({
+          id: user.id,
+          username,
+          friend_code: randomProfileFriendCode(),
+          is_online: true,
+          created_at: new Date().toISOString()
+        });
+      } else {
+        await sb.from("profiles").update({ is_online: true }).eq("id", user.id);
+      }
+      return user;
+    }
+
     function normalizeFriendCode(code) {
       const clean = (code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
       if (clean.length <= 4) return clean;
@@ -891,7 +924,7 @@
     }
 
     async function refreshFriends() {
-      const me = state.me.username;
+      const me = currentUserKey();
       const { data: links } = await sb.from("friends").select("*").or(`user_a.eq.${me},user_b.eq.${me}`);
       const names = (links || []).map((r) => r.user_a === me ? r.user_b : r.user_a);
       state.friends = names;
@@ -1126,6 +1159,7 @@
     async function sendSystem(room, body) {
       await sb.from("messages").insert({
         username: "system",
+        sender_id: currentUserId(),
         room,
         message: messagePayload(body),
         message_type: "system"
@@ -1292,6 +1326,7 @@
         await sb.from("members").upsert({
           room_code: code,
           username: room.host_username,
+          user_id: null,
           is_host: true,
           is_online: true
         }, { onConflict: "room_code,username" });
@@ -1300,6 +1335,7 @@
       await sb.from("members").upsert({
         room_code: code,
         username: state.me.username,
+        user_id: currentUserId(),
         is_host: room.host_username === state.me.username,
         is_online: true
       }, { onConflict: "room_code,username" });
@@ -1350,6 +1386,7 @@
       await sb.from("members").upsert({
         room_code,
         username: me,
+        user_id: currentUserId(),
         is_host: true,
         is_online: true
       }, { onConflict: "room_code,username" });
@@ -1459,6 +1496,7 @@
 
       const { error } = await sb.from("messages").insert({
         username: state.me.username,
+        sender_id: currentUserId(),
         room: state.room.room_code,
         message: messagePayload(txt, payload),
         message_type: "text"
@@ -1494,6 +1532,7 @@
 
         const { error } = await sb.from("messages").insert({
           username: state.me.username,
+          sender_id: currentUserId(),
           room: state.room.room_code,
           message: messagePayload(body, { body, media, delivery: "sent" }),
           message_type: kind
@@ -1622,7 +1661,7 @@
         try { sb.removeChannel(state.globalSub); } catch {}
       }
 
-      const me = state.me.username;
+      const me = currentUserKey();
       state.globalSub = sb.channel(`global:${me}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_requests", filter: `to_user=eq.${me}` }, async () => {
           await refreshFriends();
@@ -1709,10 +1748,14 @@
       if (!user.password_hash) await sb.from("users").update({ password_hash: hashed }).eq("username", username);
 
       state.me = {
+        id: null,
         username,
         friend_code: user.friend_code || friendCodeFromUsername(username)
       };
       state.adminMode = isAdminLogin;
+
+      const authUser = await getAuthUserAndEnsureProfile(username);
+      if (authUser?.id) state.me.id = authUser.id;
 
       if (!user.friend_code) {
         await sb.from("users").update({ friend_code: state.me.friend_code }).eq("username", username);
@@ -1852,7 +1895,13 @@
       const code = normalizeFriendCode(el.friendSearch.value);
       if (!code) return setStatus(el.friendStatus, "Enter a friend code.", true);
 
-      let userQuery = await sb.from("users").select("username,friend_code").eq("friend_code", code).limit(1);
+      let userQuery = await sb.from("profiles").select("id,username,friend_code").eq("friend_code", code).limit(1);
+      if (userQuery.error || !userQuery.data?.length) {
+        userQuery = await sb.from("profiles").select("id,username,friend_code").ilike("friend_code", code).limit(1);
+      }
+      if (userQuery.error || !userQuery.data?.length) {
+        userQuery = await sb.from("users").select("username,friend_code").eq("friend_code", code).limit(1);
+      }
       if (userQuery.error || !userQuery.data?.length) {
         userQuery = await sb.from("users").select("username,friend_code").ilike("friend_code", code).limit(1);
       }
@@ -1860,17 +1909,18 @@
       const user = userQuery.data?.[0];
       if (!user) return setStatus(el.friendStatus, "User not found.", true);
 
-      const to = user.username;
-      if (to === state.me.username) return setStatus(el.friendStatus, "That is your code.", true);
+      const to = user.id || user.username;
+      const toName = user.username || to;
+      if (to === currentUserKey()) return setStatus(el.friendStatus, "That is your code.", true);
 
       const [a, b] = [state.me.username, to].sort();
       const { data: alreadyFriends } = await sb.from("friends").select("id").eq("user_a", a).eq("user_b", b).maybeSingle();
-      if (alreadyFriends) return setStatus(el.friendStatus, `@${to} is already your friend.`);
+      if (alreadyFriends) return setStatus(el.friendStatus, `@${toName} is already your friend.`);
 
       const { data: reverseReq } = await sb.from("friend_requests")
         .select("*")
         .eq("from_user", to)
-        .eq("to_user", state.me.username)
+        .eq("to_user", currentUserKey())
         .eq("status", "pending")
         .maybeSingle();
 
@@ -1878,12 +1928,12 @@
         await sb.from("friend_requests").update({ status: "accepted" }).eq("id", reverseReq.id);
         await sb.from("friends").upsert({ user_a: a, user_b: b }, { onConflict: "user_a,user_b" });
         await refreshFriends();
-        return setStatus(el.friendStatus, `Friend added: @${to}.`);
+        return setStatus(el.friendStatus, `Friend added: @${toName}.`);
       }
 
       const { data: already } = await sb.from("friend_requests")
         .select("id")
-        .eq("from_user", state.me.username)
+        .eq("from_user", currentUserKey())
         .eq("to_user", to)
         .eq("status", "pending")
         .maybeSingle();
@@ -1891,7 +1941,7 @@
       if (already) return setStatus(el.friendStatus, "Request already pending.", true);
 
       let insertReq = await sb.from("friend_requests").insert({
-        from_user: state.me.username,
+        from_user: currentUserKey(),
         to_user: to,
         status: "pending",
         seen: false,
@@ -1900,14 +1950,14 @@
 
       if (insertReq.error) {
         insertReq = await sb.from("friend_requests").insert({
-          from_user: state.me.username,
+          from_user: currentUserKey(),
           to_user: to,
           status: "pending"
         });
       }
 
       if (insertReq.error) return setStatus(el.friendStatus, insertReq.error.message, true);
-      setStatus(el.friendStatus, `Request sent to @${to}.`);
+      setStatus(el.friendStatus, `Request sent to @${toName}.`);
       el.friendSearch.value = "";
     };
 
@@ -1960,6 +2010,7 @@
       if (!url) return;
       await sb.from("messages").insert({
         username: state.me.username,
+        sender_id: currentUserId(),
         room: state.room.room_code,
         message: messagePayload("GIF", {
           body: url,
@@ -2164,6 +2215,7 @@
 
     (async function init() {
       await wipeCloudDataOnce();
+      await getAuthUserAndEnsureProfile();
       renderPasswordStrength();
       showAuth(true);
     })();
