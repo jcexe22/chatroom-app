@@ -346,10 +346,6 @@
           <div class="panel">
             <h3>Create room</h3>
             <input id="roomNameInput" placeholder="Room name" maxlength="48" />
-            <select id="roomModeSelect">
-              <option value="code">Code-only room</option>
-              <option value="public">Public-for-friends room</option>
-            </select>
             <button id="createRoomBtn" class="success">Create room</button>
           </div>
 
@@ -486,11 +482,11 @@
       menuUser: document.getElementById("menuUser"),
       menuStatus: document.getElementById("menuStatus"),
       roomNameInput: document.getElementById("roomNameInput"),
-      roomModeSelect: document.getElementById("roomModeSelect"),
       joinCodeInput: document.getElementById("joinCodeInput"),
       savedRooms: document.getElementById("savedRooms"),
       findFriendInput: document.getElementById("findFriendInput"),
       friendStatus: document.getElementById("friendStatus"),
+      myFriendCode: document.getElementById("myFriendCode"),
       friendList: document.getElementById("friendList"),
       incomingRequests: document.getElementById("incomingRequests"),
       chatScreen: document.getElementById("chatScreen"),
@@ -807,7 +803,7 @@
       if (!code) return setStatus(els.menuStatus, "Enter room code.", true);
 
       setStatus(els.menuStatus, "Joining room...");
-      const { data: roomData, error: roomError } = await supabaseClient
+      const { data: roomRows, error: roomError } = await supabaseClient
         .from("rooms")
         .select("id, room_code, created_by, created_at")
         .eq("room_code", code)
