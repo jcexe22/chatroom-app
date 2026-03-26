@@ -319,7 +319,7 @@
 
         <div id="signupPanel">
           <h3>Sign up</h3>
-          <input id="signupUser" placeholder="Choose username" maxlength="24" />
+          <input id="signupUser" placeholder="Email" maxlength="24" />
           <input id="signupPass" type="password" placeholder="Choose password" />
           <div id="passwordStrength" class="hint">Password strength: -</div>
           <button class="primary" id="signupBtn">Create account</button>
@@ -329,7 +329,7 @@
 
         <div id="loginPanel" class="hidden">
           <h3>Log in</h3>
-          <input id="loginUser" placeholder="Username" maxlength="24" />
+          <input id="loginUser" placeholder="Email" maxlength="24" />
           <input id="loginPass" type="password" placeholder="Password" />
           <button class="primary" id="loginBtn">Log in</button>
           <div id="loginStatus" class="error"></div>
@@ -366,7 +366,7 @@
 
           <div class="panel">
             <h3>Friends</h3>
-            <input id="findFriendInput" placeholder="Find username" maxlength="24" />
+            <input id="findFriendInput" placeholder="Friend code" maxlength="24" />
             <button id="sendFriendRequestBtn">Send friend request</button>
             <div id="friendStatus" class="status"></div>
             <div id="friendList"></div>
@@ -451,27 +451,26 @@
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
     const appState = {
-      usersDB: JSON.parse(localStorage.getItem("chat_users") || "{}"),
-      currentUser: JSON.parse(localStorage.getItem("chat_session") || "null"),
-      bannedDB: JSON.parse(localStorage.getItem("chat_banned_users") || "{}"),
-      friendsDB: JSON.parse(localStorage.getItem("chat_friends") || "{}"),
-      friendRequestsDB: JSON.parse(localStorage.getItem("chat_friend_requests") || "{}"),
-      roomModes: JSON.parse(localStorage.getItem("chat_room_modes") || "{}"),
+      currentUser: null,
+      profile: null,
       room: null,
       roomMeta: null,
       members: [],
       messages: [],
+      joinedRooms: [],
+      friends: [],
+      incomingRequests: [],
       messagesSubscription: null,
-      roomSubscription: null,
       membersSubscription: null,
       typingChannel: null,
       typingUsers: new Set(),
-      typingTimer: null
+      typingTimer: null,
+      profileMap: {}
     };
 
-    const savedRoomsKey = "chat_saved_rooms";
     const ADMIN_USER = "p";
     const ADMIN_PASS = "p";
+
     const els = {
       authScreen: document.getElementById("authScreen"),
       signupPanel: document.getElementById("signupPanel"),
@@ -516,20 +515,12 @@
       adminUsers: document.getElementById("adminUsers")
     };
 
-    function persistState() {
-      localStorage.setItem("chat_users", JSON.stringify(appState.usersDB));
-      localStorage.setItem("chat_banned_users", JSON.stringify(appState.bannedDB));
-      localStorage.setItem("chat_friends", JSON.stringify(appState.friendsDB));
-      localStorage.setItem("chat_friend_requests", JSON.stringify(appState.friendRequestsDB));
-      localStorage.setItem("chat_room_modes", JSON.stringify(appState.roomModes));
-    }
+    const normalizeRoomCode = (value) => (value || "").trim().toUpperCase();
+    const normalizeFriendCode = (value) => (value || "").trim().toUpperCase();
 
-    function getFriends(username = appState.currentUser?.username) {
-      return appState.friendsDB[username] || [];
-    }
-
-    function hashPassword(pass) {
-      return btoa(unescape(encodeURIComponent(pass))).split("").reverse().join("");
+    function setStatus(el, message, isError = false) {
+      el.textContent = message || "";
+      el.style.color = isError ? "#fecaca" : "#cbd5e1";
     }
 
     function passwordScore(pass) {
@@ -560,32 +551,51 @@
       screen.classList.remove("hidden");
     }
 
-    function setStatus(el, message, isError = false) {
-      el.textContent = message || "";
-      el.style.color = isError ? "#fecaca" : "#cbd5e1";
-    }
-
-    function generateCode() {
+    function generateCode(length = 6) {
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let out = "";
-      for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+      for (let i = 0; i < length; i++) out += chars[Math.floor(Math.random() * chars.length)];
       return out;
     }
 
-    function getSavedRooms() {
-      return JSON.parse(localStorage.getItem(savedRoomsKey) || "[]");
+    async function ensureProfile(user, preferredUsername = "") {
+      const { data: existing, error } = await supabaseClient.from("profiles").select("*").eq("id", user.id).maybeSingle();
+      if (error) throw error;
+      if (existing) {
+        await supabaseClient.from("profiles").update({ is_online: true, last_seen: new Date().toISOString() }).eq("id", user.id);
+        appState.profile = { ...existing, is_online: true };
+        return appState.profile;
+      }
+
+      const username = (preferredUsername || user.user_metadata?.username || user.email || `user-${user.id.slice(0, 8)}`).trim();
+      const payload = {
+        id: user.id,
+        username,
+        friend_code: generateCode(8),
+        is_online: true,
+        last_seen: new Date().toISOString()
+      };
+      const { data: inserted, error: insertError } = await supabaseClient.from("profiles").insert([payload]).select("*").single();
+      if (insertError) throw insertError;
+      appState.profile = inserted;
+      return inserted;
     }
 
-    function saveRoomLocally(roomCode, roomName) {
-      const rooms = getSavedRooms();
-      const filtered = rooms.filter(r => r.room_code !== roomCode);
-      filtered.unshift({ room_code: roomCode, room_name: roomName, last_seen: Date.now() });
-      localStorage.setItem(savedRoomsKey, JSON.stringify(filtered.slice(0, 12)));
-      renderSavedRooms();
+    async function loadJoinedRooms() {
+      const userId = appState.currentUser?.id;
+      if (!userId) return;
+      const { data: memberRows } = await supabaseClient.from("members").select("room_id, created_at").eq("user_id", userId).order("created_at", { ascending: false });
+      const roomIds = [...new Set((memberRows || []).map((m) => m.room_id))];
+      if (!roomIds.length) {
+        appState.joinedRooms = [];
+        return;
+      }
+      const { data: rooms } = await supabaseClient.from("rooms").select("id, room_code, created_by, created_at").in("id", roomIds);
+      appState.joinedRooms = (rooms || []).sort((a, b) => roomIds.indexOf(a.id) - roomIds.indexOf(b.id));
     }
 
     function renderSavedRooms() {
-      const rooms = getSavedRooms();
+      const rooms = appState.joinedRooms || [];
       if (!rooms.length) {
         els.savedRooms.innerHTML = "<p class='hint'>No rooms yet.</p>";
         return;
@@ -594,7 +604,7 @@
       rooms.forEach((r) => {
         const div = document.createElement("div");
         div.className = "saved-room";
-        div.innerHTML = `<span>${r.room_name || "Room"} (${r.room_code})</span>`;
+        div.innerHTML = `<span>Room (${r.room_code})</span>`;
         const b = document.createElement("button");
         b.className = "small-btn";
         b.textContent = "Join";
@@ -604,221 +614,157 @@
       });
     }
 
-    async function fetchFriendsPresence() {
-      const friends = getFriends();
-      if (!friends.length) return {};
-      const { data } = await supabaseClient
-        .from("members")
-        .select("username, room_code, is_online, joined_at")
-        .in("username", friends)
-        .order("joined_at", { ascending: false });
+    async function loadFriendsAndRequests() {
+      const userId = appState.currentUser?.id;
+      if (!userId) return;
 
-      const latest = {};
-      (data || []).forEach((row) => {
-        if (!latest[row.username]) latest[row.username] = row;
-      });
-      return latest;
+      const { data: accepted } = await supabaseClient
+        .from("friend_requests")
+        .select("id, from_user, to_user, status, created_at")
+        .eq("status", "accepted")
+        .or(`from_user.eq.${userId},to_user.eq.${userId}`)
+        .order("created_at", { ascending: false });
+
+      const { data: incoming } = await supabaseClient
+        .from("friend_requests")
+        .select("id, from_user, to_user, status, created_at")
+        .eq("to_user", userId)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      appState.incomingRequests = incoming || [];
+
+      const friendIds = [...new Set((accepted || []).map((r) => (r.from_user === userId ? r.to_user : r.from_user)))];
+      if (!friendIds.length) {
+        appState.friends = [];
+        return;
+      }
+
+      const { data: profiles } = await supabaseClient
+        .from("profiles")
+        .select("id, username, friend_code, is_online, current_room_id")
+        .in("id", friendIds);
+      const map = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+
+      appState.friends = friendIds.map((id) => map[id]).filter(Boolean);
     }
 
     async function renderFriends() {
-      const me = appState.currentUser?.username;
-      if (!me) return;
+      await loadFriendsAndRequests();
 
-      const friends = getFriends(me);
-      const incoming = appState.friendRequestsDB[me] || [];
-      const presence = await fetchFriendsPresence();
-
-      els.friendList.innerHTML = friends.length ? "" : "<p class='hint'>No friends added yet.</p>";
-      friends.forEach((friendName) => {
+      els.friendList.innerHTML = appState.friends.length ? "" : "<p class='hint'>No friends added yet.</p>";
+      appState.friends.forEach((friend) => {
         const row = document.createElement("div");
         row.className = "friend-row";
-
-        const item = presence[friendName];
-        const isOnline = !!item?.is_online;
-        const roomCode = item?.room_code;
-        const dotClass = isOnline ? "online" : "offline";
-        row.innerHTML = `<div><span class="dot ${dotClass}"></span><strong>${friendName}</strong><div class="hint">${isOnline ? "Online" : "Offline"}</div></div>`;
+        const dotClass = friend.is_online ? "online" : "offline";
+        row.innerHTML = `<div><span class="dot ${dotClass}"></span><strong>${friend.username}</strong><div class="hint">${friend.is_online ? "Online" : "Offline"}</div></div>`;
 
         const actions = document.createElement("div");
-        if (isOnline && roomCode) {
+        if (friend.current_room_id) {
           const joinBtn = document.createElement("button");
           joinBtn.className = "small-btn";
           joinBtn.textContent = "Join their room";
-          joinBtn.onclick = () => joinFriendRoom(roomCode, friendName);
+          joinBtn.onclick = async () => {
+            const { data: room } = await supabaseClient.from("rooms").select("room_code").eq("id", friend.current_room_id).maybeSingle();
+            if (room?.room_code) joinRoom(room.room_code);
+          };
           actions.appendChild(joinBtn);
         }
         row.appendChild(actions);
         els.friendList.appendChild(row);
       });
 
-      els.incomingRequests.innerHTML = incoming.length ? "" : "<p class='hint'>No requests.</p>";
-      incoming.forEach((sender) => {
+      els.incomingRequests.innerHTML = appState.incomingRequests.length ? "" : "<p class='hint'>No requests.</p>";
+      for (const req of appState.incomingRequests) {
+        const { data: sender } = await supabaseClient.from("profiles").select("username").eq("id", req.from_user).maybeSingle();
         const row = document.createElement("div");
         row.className = "friend-row";
-        row.innerHTML = `<strong>${sender}</strong>`;
+        row.innerHTML = `<strong>${sender?.username || req.from_user}</strong>`;
         const actions = document.createElement("div");
 
         const acceptBtn = document.createElement("button");
         acceptBtn.className = "small-btn success";
         acceptBtn.textContent = "Accept";
-        acceptBtn.onclick = () => acceptFriendRequest(sender);
+        acceptBtn.onclick = () => acceptFriendRequest(req.id);
 
         const declineBtn = document.createElement("button");
         declineBtn.className = "small-btn";
         declineBtn.textContent = "Decline";
-        declineBtn.onclick = () => declineFriendRequest(sender);
+        declineBtn.onclick = () => declineFriendRequest(req.id);
 
         actions.appendChild(acceptBtn);
         actions.appendChild(declineBtn);
         row.appendChild(actions);
         els.incomingRequests.appendChild(row);
-      });
-    }
-
-    function sendFriendRequest() {
-      const me = appState.currentUser?.username;
-      const target = els.findFriendInput.value.trim();
-      if (!me || !target) return setStatus(els.friendStatus, "Enter a username.", true);
-      if (target === me) return setStatus(els.friendStatus, "You cannot add yourself.", true);
-
-      if (!appState.usersDB[target]) {
-        return setStatus(els.friendStatus, "User not found.", true);
       }
+    }
 
-      const mine = new Set(getFriends(me));
-      if (mine.has(target)) return setStatus(els.friendStatus, "Already friends.", true);
+    async function sendFriendRequest() {
+      const me = appState.currentUser?.id;
+      const friendCode = normalizeFriendCode(els.findFriendInput.value);
+      if (!me || !friendCode) return setStatus(els.friendStatus, "Enter a friend code.", true);
 
-      const list = appState.friendRequestsDB[target] || [];
-      if (!list.includes(me)) list.push(me);
-      appState.friendRequestsDB[target] = list;
-      persistState();
+      const { data: target } = await supabaseClient.from("profiles").select("id, username").eq("friend_code", friendCode).maybeSingle();
+      if (!target) return setStatus(els.friendStatus, "User not found.", true);
+      if (target.id === me) return setStatus(els.friendStatus, "You cannot add yourself.", true);
+
+      const { data: existingRows } = await supabaseClient
+        .from("friend_requests")
+        .select("id, status")
+        .or(`and(from_user.eq.${me},to_user.eq.${target.id}),and(from_user.eq.${target.id},to_user.eq.${me})`);
+      const hasPending = (existingRows || []).some((r) => r.status === "pending");
+      const alreadyFriends = (existingRows || []).some((r) => r.status === "accepted");
+      if (alreadyFriends) return setStatus(els.friendStatus, "Already friends.", true);
+      if (hasPending) return setStatus(els.friendStatus, "Request already pending.", true);
+
+      const { error } = await supabaseClient.from("friend_requests").insert([{ from_user: me, to_user: target.id, status: "pending" }]);
+      if (error) return setStatus(els.friendStatus, error.message, true);
+
       els.findFriendInput.value = "";
-      setStatus(els.friendStatus, `Request sent to ${target}.`);
+      setStatus(els.friendStatus, `Request sent to ${target.username}.`);
+      await renderFriends();
     }
 
-    function acceptFriendRequest(sender) {
-      const me = appState.currentUser?.username;
-      const mine = new Set(getFriends(me));
-      mine.add(sender);
-      appState.friendsDB[me] = [...mine];
-
-      const theirs = new Set(getFriends(sender));
-      theirs.add(me);
-      appState.friendsDB[sender] = [...theirs];
-
-      appState.friendRequestsDB[me] = (appState.friendRequestsDB[me] || []).filter((u) => u !== sender);
-      persistState();
-      renderFriends();
+    async function acceptFriendRequest(requestId) {
+      await supabaseClient.from("friend_requests").update({ status: "accepted" }).eq("id", requestId);
+      await renderFriends();
     }
 
-    function declineFriendRequest(sender) {
-      const me = appState.currentUser?.username;
-      appState.friendRequestsDB[me] = (appState.friendRequestsDB[me] || []).filter((u) => u !== sender);
-      persistState();
-      renderFriends();
-    }
-
-    async function joinFriendRoom(roomCode, friendName) {
-      const mode = appState.roomModes[roomCode] || "code";
-      const isFriend = getFriends().includes(friendName);
-      if (mode === "public" && isFriend) return joinRoom(roomCode);
-      setStatus(els.friendStatus, "This room is code-only.", true);
-    }
-
-    async function renderAdminPanel() {
-      const names = Object.keys(appState.usersDB).sort((a, b) => a.localeCompare(b));
-      const { data } = await supabaseClient.from("members").select("username, is_online, joined_at").order("joined_at", { ascending: false });
-      const statusMap = {};
-      (data || []).forEach((m) => {
-        if (!(m.username in statusMap)) statusMap[m.username] = !!m.is_online;
-      });
-
-      els.adminUsers.innerHTML = "";
-      names.forEach((name) => {
-        const row = document.createElement("div");
-        row.className = "admin-row";
-        const banned = !!appState.bannedDB[name];
-        row.innerHTML = `<div><strong>${name}</strong><div class='hint'>${statusMap[name] ? "Online" : "Offline"} • password hash: ${appState.usersDB[name]}</div></div>`;
-        const controls = document.createElement("div");
-        const banBtn = document.createElement("button");
-        banBtn.className = "small-btn danger";
-        banBtn.textContent = banned ? "Unban" : "Ban";
-        banBtn.onclick = () => {
-          appState.bannedDB[name] = !banned;
-          if (!appState.bannedDB[name]) delete appState.bannedDB[name];
-          persistState();
-          renderAdminPanel();
-        };
-        controls.appendChild(banBtn);
-        row.appendChild(controls);
-        els.adminUsers.appendChild(row);
-      });
+    async function declineFriendRequest(requestId) {
+      await supabaseClient.from("friend_requests").update({ status: "declined" }).eq("id", requestId);
+      await renderFriends();
     }
 
     function renderMembers() {
       els.memberList.innerHTML = "";
-      appState.members
-        .filter(m => m.is_online)
-        .forEach((m) => {
-          const row = document.createElement("div");
-          row.className = "member" + (m.username === appState.currentUser?.username ? " current" : "");
-
-          const label = document.createElement("div");
-          label.innerHTML = `<strong>${m.username}</strong>`;
-
-          const right = document.createElement("div");
-          if (m.is_host) {
-            const hostBadge = document.createElement("span");
-            hostBadge.className = "badge host";
-            hostBadge.textContent = "Host";
-            right.appendChild(hostBadge);
-          }
-
-          const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
-          if (isRoomHost && m.username !== appState.currentUser?.username) {
-            const kickBtn = document.createElement("button");
-            kickBtn.className = "small-btn danger";
-            kickBtn.textContent = "Kick";
-            kickBtn.onclick = () => kickMember(m.username);
-            right.appendChild(kickBtn);
-          }
-
-          row.appendChild(label);
-          row.appendChild(right);
-          els.memberList.appendChild(row);
-        });
-      setStatus(els.sidebarStatus, `${appState.members.filter(m => m.is_online).length} online`);
+      appState.members.forEach((m) => {
+        const row = document.createElement("div");
+        row.className = "member" + (m.user_id === appState.currentUser?.id ? " current" : "");
+        row.innerHTML = `<div><strong>${m.username || m.user_id}</strong></div>`;
+        els.memberList.appendChild(row);
+      });
+      setStatus(els.sidebarStatus, `${appState.members.length} members`);
     }
 
     function renderMessages() {
       els.chatBox.innerHTML = "";
       appState.messages.forEach((m) => {
         const wrap = document.createElement("div");
-        const isSelf = m.username === appState.currentUser?.username;
+        const isSelf = m.sender_id === appState.currentUser?.id;
         const isSystem = m.message_type === "system";
         wrap.className = `msg${isSelf ? " self" : ""}${isSystem ? " system" : ""}`;
 
         const ts = new Date(m.created_at || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.textContent = isSystem ? ts : `${m.username} • ${ts}`;
+        meta.textContent = isSystem ? ts : `${m.username || m.sender_id} • ${ts}`;
 
         const bubble = document.createElement("div");
         bubble.className = "bubble";
-        bubble.textContent = m.message;
+        bubble.textContent = m.content;
 
         wrap.appendChild(meta);
         wrap.appendChild(bubble);
-
-        const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
-        if (isRoomHost && !isSystem) {
-          const del = document.createElement("button");
-          del.className = "small-btn danger";
-          del.textContent = "Delete";
-          del.onclick = () => deleteMessage(m.id);
-          wrap.appendChild(del);
-        }
-
         els.chatBox.appendChild(wrap);
       });
       els.chatBox.scrollTop = els.chatBox.scrollHeight;
@@ -826,120 +772,123 @@
 
     function updateTypingIndicator() {
       const list = [...appState.typingUsers];
-      if (!list.length) {
-        els.typingIndicator.textContent = "";
-      } else {
-        els.typingIndicator.textContent = `${list.join(", ")} typing...`;
-      }
+      els.typingIndicator.textContent = list.length ? `${list.join(", ")} typing...` : "";
     }
 
-    async function sendDbMessage(text, type = "text", username = appState.currentUser.username) {
-      const { error } = await supabaseClient.from("messages").insert([{ username, room: appState.room, message: text, message_type: type }]);
+    async function sendDbMessage(text) {
+      const payload = { room_id: appState.roomMeta.id, sender_id: appState.currentUser.id, content: text };
+      const { error } = await supabaseClient.from("messages").insert([payload]);
       if (error) throw error;
     }
 
     async function createRoom() {
-      const roomName = els.roomNameInput.value.trim();
-      if (!roomName) return setStatus(els.menuStatus, "Room name required.", true);
-      if (appState.bannedDB[appState.currentUser.username]) return setStatus(els.menuStatus, "You are banned.", true);
-
+      if (!appState.currentUser?.id) return;
       setStatus(els.menuStatus, "Creating room...");
-      let roomCode = generateCode();
+
+      let roomCode = generateCode().toUpperCase();
       for (let i = 0; i < 5; i++) {
-        const { data } = await supabaseClient.from("rooms").select("room_code").eq("room_code", roomCode).maybeSingle();
+        const { data } = await supabaseClient.from("rooms").select("id").eq("room_code", roomCode).maybeSingle();
         if (!data) break;
-        roomCode = generateCode();
+        roomCode = generateCode().toUpperCase();
       }
 
-      const payload = {
-        room_code: roomCode,
-        room_name: roomName,
-        host_username: appState.currentUser.username,
-        is_active: true
-      };
+      const { data: room, error } = await supabaseClient
+        .from("rooms")
+        .insert([{ room_code: roomCode, created_by: appState.currentUser.id }])
+        .select("id, room_code, created_by, created_at")
+        .single();
 
-      const { error } = await supabaseClient.from("rooms").insert([payload]);
       if (error) return setStatus(els.menuStatus, `Failed to create room: ${error.message}`, true);
-
-      appState.roomModes[roomCode] = els.roomModeSelect.value;
-      persistState();
-
-      await enterRoom(roomCode, true);
+      await enterRoom(room, true);
     }
 
     async function joinRoom(codeArg) {
-      const code = (codeArg || els.joinCodeInput.value).trim().toUpperCase();
+      const code = normalizeRoomCode(codeArg || els.joinCodeInput.value);
       if (!code) return setStatus(els.menuStatus, "Enter room code.", true);
-      if (appState.bannedDB[appState.currentUser.username]) return setStatus(els.menuStatus, "You are banned.", true);
 
       setStatus(els.menuStatus, "Joining room...");
       const { data: roomData, error: roomError } = await supabaseClient
         .from("rooms")
-        .select("*")
+        .select("id, room_code, created_by, created_at")
         .eq("room_code", code)
-        .eq("is_active", true)
         .maybeSingle();
 
-      if (roomError || !roomData) return setStatus(els.menuStatus, "Room not found or closed.", true);
-      await enterRoom(code, false, roomData);
+      if (roomError) return setStatus(els.menuStatus, roomError.message, true);
+      if (!roomData) return setStatus(els.menuStatus, "Room not found", true);
+
+      await enterRoom(roomData, false);
     }
 
-    async function enterRoom(code, created = false, roomData = null) {
-      appState.room = code;
-      const { data: room } = roomData
-        ? { data: roomData }
-        : await supabaseClient.from("rooms").select("*").eq("room_code", code).maybeSingle();
-      appState.roomMeta = room;
+    async function enterRoom(roomData, created = false) {
+      const userId = appState.currentUser?.id;
+      if (!userId) return;
 
-      const isHost = room.host_username === appState.currentUser.username;
+      appState.roomMeta = roomData;
+      appState.room = roomData.room_code;
+
       const { data: existingMember } = await supabaseClient
         .from("members")
         .select("id")
-        .eq("room_code", code)
-        .eq("username", appState.currentUser.username)
+        .eq("room_id", roomData.id)
+        .eq("user_id", userId)
         .maybeSingle();
 
-      if (existingMember?.id) {
-        await supabaseClient.from("members").update({ is_online: true, is_host: isHost }).eq("id", existingMember.id);
-      } else {
-        await supabaseClient.from("members").insert([{ room_code: code, username: appState.currentUser.username, is_host: isHost, is_online: true }]);
+      if (!existingMember?.id) {
+        await supabaseClient.from("members").insert([{ room_id: roomData.id, user_id: userId }]);
       }
+
+      await supabaseClient
+        .from("profiles")
+        .update({ is_online: true, last_seen: new Date().toISOString(), current_room_id: roomData.id })
+        .eq("id", userId);
 
       if (created) {
-        await sendDbMessage(`${appState.currentUser.username} created the room`, "system");
-      } else {
-        await sendDbMessage(`${appState.currentUser.username} joined the room`, "system");
+        await sendDbMessage(`${appState.profile?.username || "User"} created the room`);
       }
 
-      saveRoomLocally(code, room.room_name);
       await loadRoomData();
       subscribeToRealtime();
+      await loadJoinedRooms();
+      renderSavedRooms();
 
-      els.roomLabel.textContent = room.room_name;
-      els.roomCodeLabel.textContent = code;
-      els.hostControls.classList.toggle("hidden", !isHost);
+      els.roomLabel.textContent = `Room ${roomData.room_code}`;
+      els.roomCodeLabel.textContent = roomData.room_code;
+      els.hostControls.classList.toggle("hidden", true);
       showScreen(els.chatScreen);
       setStatus(els.chatStatus, "Connected");
+      setStatus(els.menuStatus, "");
     }
 
     async function loadRoomData() {
+      const roomId = appState.roomMeta?.id;
+      if (!roomId) return;
       const [membersRes, messagesRes] = await Promise.all([
-        supabaseClient.from("members").select("*").eq("room_code", appState.room).order("joined_at", { ascending: true }),
-        supabaseClient.from("messages").select("*").eq("room", appState.room).order("created_at", { ascending: true })
+        supabaseClient.from("members").select("id, room_id, user_id, created_at").eq("room_id", roomId).order("created_at", { ascending: true }),
+        supabaseClient.from("messages").select("id, room_id, sender_id, content, created_at").eq("room_id", roomId).order("created_at", { ascending: true })
       ]);
-      appState.members = membersRes.data || [];
-      appState.messages = messagesRes.data || [];
+
+      const members = membersRes.data || [];
+      const messages = messagesRes.data || [];
+      const userIds = [...new Set([...members.map((m) => m.user_id), ...messages.map((m) => m.sender_id)])];
+      let profileMap = {};
+      if (userIds.length) {
+        const { data: profiles } = await supabaseClient.from("profiles").select("id, username").in("id", userIds);
+        profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
+      }
+
+      appState.profileMap = profileMap;
+      appState.members = members.map((m) => ({ ...m, username: profileMap[m.user_id]?.username }));
+      appState.messages = messages.map((m) => ({ ...m, username: profileMap[m.sender_id]?.username }));
       renderMembers();
       renderMessages();
     }
 
     function cleanupSubscriptions() {
-      [appState.messagesSubscription, appState.membersSubscription, appState.roomSubscription, appState.typingChannel].forEach((sub) => {
+      [appState.messagesSubscription, appState.membersSubscription, appState.typingChannel].forEach((sub) => {
         if (sub) supabaseClient.removeChannel(sub);
       });
       appState.messagesSubscription = null;
       appState.membersSubscription = null;
-      appState.roomSubscription = null;
       appState.typingChannel = null;
       appState.typingUsers.clear();
       updateTypingIndicator();
@@ -947,51 +896,26 @@
 
     function subscribeToRealtime() {
       cleanupSubscriptions();
+      const roomId = appState.roomMeta?.id;
+      if (!roomId) return;
 
       appState.messagesSubscription = supabaseClient
-        .channel(`messages-${appState.room}`)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `room=eq.${appState.room}` }, payload => {
-          appState.messages.push(payload.new);
-          renderMessages();
-        })
-        .on("postgres_changes", { event: "DELETE", schema: "public", table: "messages", filter: `room=eq.${appState.room}` }, payload => {
-          appState.messages = appState.messages.filter(m => m.id !== payload.old.id);
-          renderMessages();
-        })
+        .channel(`messages-${roomId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `room_id=eq.${roomId}` }, loadRoomData)
         .subscribe();
 
       appState.membersSubscription = supabaseClient
-        .channel(`members-${appState.room}`)
-        .on("postgres_changes", { event: "*", schema: "public", table: "members", filter: `room_code=eq.${appState.room}` }, async () => {
-          const { data } = await supabaseClient.from("members").select("*").eq("room_code", appState.room);
-          appState.members = data || [];
-          renderMembers();
-        })
+        .channel(`members-${roomId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "members", filter: `room_id=eq.${roomId}` }, loadRoomData)
         .subscribe();
 
-      appState.roomSubscription = supabaseClient
-        .channel(`room-${appState.room}`)
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "rooms", filter: `room_code=eq.${appState.room}` }, payload => {
-          appState.roomMeta = payload.new;
-          const stillActive = payload.new.is_active;
-          if (!stillActive) {
-            setStatus(els.chatStatus, "Room closed by host.", true);
-            setTimeout(() => leaveRoom(false), 1200);
-          }
-        })
-        .subscribe();
-
-      appState.typingChannel = supabaseClient.channel(`typing-${appState.room}`)
+      appState.typingChannel = supabaseClient.channel(`typing-${roomId}`)
         .on("broadcast", { event: "typing" }, ({ payload }) => {
-          if (!payload || payload.username === appState.currentUser.username) return;
-          if (payload.room !== appState.room) return;
-          if (payload.active) {
-            appState.typingUsers.add(payload.username);
-            updateTypingIndicator();
-          } else {
-            appState.typingUsers.delete(payload.username);
-            updateTypingIndicator();
-          }
+          if (!payload || payload.userId === appState.currentUser.id) return;
+          if (payload.roomId !== roomId) return;
+          if (payload.active) appState.typingUsers.add(payload.username);
+          else appState.typingUsers.delete(payload.username);
+          updateTypingIndicator();
         })
         .subscribe();
     }
@@ -999,45 +923,24 @@
     async function sendMessage() {
       const text = els.messageInput.value.trim();
       if (!text) return;
-      if (appState.bannedDB[appState.currentUser.username]) return setStatus(els.chatStatus, "You are banned.", true);
       els.messageInput.value = "";
       try {
-        await sendDbMessage(text, "text");
-        await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: false } });
+        await sendDbMessage(text);
+        if (appState.typingChannel && appState.roomMeta?.id) {
+          await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { roomId: appState.roomMeta.id, userId: appState.currentUser.id, username: appState.profile?.username, active: false } });
+        }
       } catch (error) {
         setStatus(els.chatStatus, `Send failed: ${error.message}`, true);
       }
     }
 
-    async function deleteMessage(messageId) {
-      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
-      const mine = appState.messages.find((m) => m.id === messageId)?.username === appState.currentUser?.username;
-      if (!isRoomHost && !mine) return;
-      const { error } = await supabaseClient.from("messages").delete().eq("id", messageId).eq("room", appState.room);
-      if (error) setStatus(els.chatStatus, `Delete failed: ${error.message}`, true);
-    }
-
-    async function kickMember(username) {
-      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
-      if (!isRoomHost) return;
-      await supabaseClient.from("members").update({ is_online: false }).eq("room_code", appState.room).eq("username", username);
-      await sendDbMessage(`${username} left the room`, "system");
-    }
-
-    async function closeRoom() {
-      const isRoomHost = appState.roomMeta?.host_username === appState.currentUser?.username;
-      if (!isRoomHost) return;
-      await sendDbMessage(`${appState.currentUser.username} closed the room`, "system");
-      await supabaseClient.from("rooms").update({ is_active: false }).eq("room_code", appState.room);
-      setTimeout(() => leaveRoom(false), 600);
-    }
-
-    async function leaveRoom(announce = true) {
-      const username = appState.currentUser?.username;
-      const roomCode = appState.room;
-      if (username && roomCode) {
-        await supabaseClient.from("members").update({ is_online: false }).eq("room_code", roomCode).eq("username", username);
-        if (announce) await sendDbMessage(`${username} left the room`, "system");
+    async function leaveRoom() {
+      const userId = appState.currentUser?.id;
+      if (userId) {
+        await supabaseClient
+          .from("profiles")
+          .update({ is_online: true, last_seen: new Date().toISOString(), current_room_id: null })
+          .eq("id", userId);
       }
       cleanupSubscriptions();
       appState.room = null;
@@ -1048,45 +951,67 @@
       setStatus(els.menuStatus, "Left room.");
     }
 
+    async function bootToMenu() {
+      els.menuUser.textContent = appState.profile?.username || appState.currentUser?.email || "User";
+      await Promise.all([loadJoinedRooms(), renderFriends()]);
+      renderSavedRooms();
+      showScreen(els.menuScreen);
+      setStatus(els.menuStatus, "");
+    }
+
+    async function hydrateAuthSession(preferredUsername = "") {
+      const { data, error } = await supabaseClient.auth.getUser();
+      if (error || !data?.user) {
+        appState.currentUser = null;
+        appState.profile = null;
+        showScreen(els.authScreen);
+        return;
+      }
+
+      appState.currentUser = data.user;
+      await ensureProfile(data.user, preferredUsername);
+      await bootToMenu();
+    }
+
     function setupEvents() {
       document.getElementById("toLogin").onclick = () => switchAuth(true);
       document.getElementById("toSignup").onclick = () => switchAuth(false);
-
       els.signupPass.addEventListener("input", renderPasswordStrength);
 
-      document.getElementById("signupBtn").onclick = () => {
-        const username = els.signupUser.value.trim();
+      document.getElementById("signupBtn").onclick = async () => {
+        const email = els.signupUser.value.trim();
         const pass = els.signupPass.value;
-        if (!username || !pass) return (els.signupStatus.textContent = "Fill all fields.");
-        if (appState.usersDB[username]) return (els.signupStatus.textContent = "Username already taken.");
+        if (!email || !pass) return (els.signupStatus.textContent = "Fill all fields.");
         if (passwordScore(pass) < 2) return (els.signupStatus.textContent = "Password too weak.");
 
-        appState.usersDB[username] = hashPassword(pass);
-        persistState();
+        const { data, error } = await supabaseClient.auth.signUp({ email, password: pass });
+        if (error) return (els.signupStatus.textContent = error.message);
+        if (!data.user) return (els.signupStatus.textContent = "Check your email to confirm your account.");
+
         els.signupStatus.className = "ok";
-        els.signupStatus.textContent = "Account created. You can log in.";
-        switchAuth(true);
+        els.signupStatus.textContent = "Account created.";
+        await hydrateAuthSession(email.split("@")[0]);
       };
 
-      document.getElementById("loginBtn").onclick = () => {
-        const username = els.loginUser.value.trim();
+      document.getElementById("loginBtn").onclick = async () => {
+        const email = els.loginUser.value.trim();
         const pass = els.loginPass.value;
-        if (appState.bannedDB[username]) {
-          els.loginStatus.textContent = "This account is banned.";
-          return;
-        }
-        if (appState.usersDB[username] !== hashPassword(pass)) {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+        if (error) {
           els.loginStatus.textContent = "Invalid credentials.";
           return;
         }
-        appState.currentUser = { username };
-        localStorage.setItem("chat_session", JSON.stringify(appState.currentUser));
-        bootToMenu();
+        await hydrateAuthSession();
       };
 
-      document.getElementById("logoutBtn").onclick = () => {
-        localStorage.removeItem("chat_session");
+      document.getElementById("logoutBtn").onclick = async () => {
+        if (appState.currentUser?.id) {
+          await supabaseClient.from("profiles").update({ is_online: false, last_seen: new Date().toISOString(), current_room_id: null }).eq("id", appState.currentUser.id);
+        }
+        await supabaseClient.auth.signOut();
+        cleanupSubscriptions();
         appState.currentUser = null;
+        appState.profile = null;
         showScreen(els.authScreen);
       };
 
@@ -1094,8 +1019,8 @@
       document.getElementById("joinRoomBtn").onclick = () => joinRoom();
       document.getElementById("sendFriendRequestBtn").onclick = sendFriendRequest;
       document.getElementById("sendBtn").onclick = sendMessage;
-      document.getElementById("leaveRoomBtn").onclick = () => leaveRoom(true);
-      document.getElementById("closeRoomBtn").onclick = closeRoom;
+      document.getElementById("leaveRoomBtn").onclick = leaveRoom;
+      document.getElementById("closeRoomBtn").onclick = leaveRoom;
 
       document.getElementById("copyCodeBtn").onclick = async () => {
         try {
@@ -1110,14 +1035,14 @@
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           sendMessage();
-        } else {
-          clearTimeout(appState.typingTimer);
-          if (appState.typingChannel && appState.room) {
-            await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: true } });
-            appState.typingTimer = setTimeout(async () => {
-              await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { room: appState.room, username: appState.currentUser.username, active: false } });
-            }, 900);
-          }
+          return;
+        }
+        clearTimeout(appState.typingTimer);
+        if (appState.typingChannel && appState.roomMeta?.id) {
+          await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { roomId: appState.roomMeta.id, userId: appState.currentUser.id, username: appState.profile?.username, active: true } });
+          appState.typingTimer = setTimeout(async () => {
+            await appState.typingChannel.send({ type: "broadcast", event: "typing", payload: { roomId: appState.roomMeta.id, userId: appState.currentUser.id, username: appState.profile?.username, active: false } });
+          }, 900);
         }
       });
 
@@ -1128,8 +1053,8 @@
       });
 
       window.addEventListener("beforeunload", () => {
-        if (appState.room && appState.currentUser) {
-          supabaseClient.from("members").update({ is_online: false }).eq("room_code", appState.room).eq("username", appState.currentUser.username);
+        if (appState.currentUser?.id) {
+          supabaseClient.from("profiles").update({ is_online: false, last_seen: new Date().toISOString() }).eq("id", appState.currentUser.id);
         }
       });
 
@@ -1139,11 +1064,7 @@
         els.adminPanel.classList.add("hidden");
         els.adminLoginStatus.textContent = "";
       };
-
-      els.adminCloseBtn.onclick = () => {
-        els.adminModal.classList.add("hidden");
-      };
-
+      els.adminCloseBtn.onclick = () => els.adminModal.classList.add("hidden");
       els.adminLoginBtn.onclick = async () => {
         if (els.adminUser.value.trim() !== ADMIN_USER || els.adminPass.value !== ADMIN_PASS) {
           els.adminLoginStatus.textContent = "Invalid admin credentials.";
@@ -1151,24 +1072,21 @@
         }
         els.adminLoginPanel.classList.add("hidden");
         els.adminPanel.classList.remove("hidden");
-        await renderAdminPanel();
+        const { data } = await supabaseClient.from("profiles").select("username, is_online, friend_code").order("username", { ascending: true });
+        els.adminUsers.innerHTML = (data || []).map((p) => `<div class="admin-row"><div><strong>${p.username}</strong><div class='hint'>${p.is_online ? "Online" : "Offline"} • ${p.friend_code}</div></div></div>`).join("");
       };
+
+      supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+        if (session?.user) {
+          await hydrateAuthSession();
+        }
+      });
     }
 
-    function bootToMenu() {
-      els.menuUser.textContent = appState.currentUser.username;
-      showScreen(els.menuScreen);
-      renderSavedRooms();
-      renderFriends();
-      setStatus(els.menuStatus, "");
-    }
-
-    function init() {
+    async function init() {
       setupEvents();
       renderPasswordStrength();
-      renderSavedRooms();
-      if (appState.currentUser?.username) bootToMenu();
-      else showScreen(els.authScreen);
+      await hydrateAuthSession();
     }
 
     init();
