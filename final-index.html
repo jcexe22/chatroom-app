@@ -362,7 +362,6 @@
 
           <div class="panel">
             <h3>Friends</h3>
-            <div class="hint">Your friend code: <strong id="myFriendCode">-</strong></div>
             <input id="findFriendInput" placeholder="Friend code" maxlength="24" />
             <button id="sendFriendRequestBtn">Send friend request</button>
             <div id="friendStatus" class="status"></div>
@@ -568,7 +567,7 @@
       const payload = {
         id: user.id,
         username,
-        friend_code: generateCode(8).toUpperCase(),
+        friend_code: generateCode(8),
         is_online: true,
         last_seen: new Date().toISOString()
       };
@@ -723,26 +722,12 @@
     }
 
     async function acceptFriendRequest(requestId) {
-      const me = appState.currentUser?.id;
-      const { error } = await supabaseClient
-        .from("friend_requests")
-        .update({ status: "accepted" })
-        .eq("id", requestId)
-        .eq("to_user", me);
-      if (error) return setStatus(els.friendStatus, `Accept failed: ${error.message}`, true);
-      setStatus(els.friendStatus, "Friend request accepted.");
+      await supabaseClient.from("friend_requests").update({ status: "accepted" }).eq("id", requestId);
       await renderFriends();
     }
 
     async function declineFriendRequest(requestId) {
-      const me = appState.currentUser?.id;
-      const { error } = await supabaseClient
-        .from("friend_requests")
-        .delete()
-        .eq("id", requestId)
-        .eq("to_user", me);
-      if (error) return setStatus(els.friendStatus, `Decline failed: ${error.message}`, true);
-      setStatus(els.friendStatus, "Friend request removed.");
+      await supabaseClient.from("friend_requests").update({ status: "declined" }).eq("id", requestId);
       await renderFriends();
     }
 
@@ -798,8 +783,8 @@
 
       let roomCode = generateCode().toUpperCase();
       for (let i = 0; i < 5; i++) {
-        const { data } = await supabaseClient.from("rooms").select("id").eq("room_code", roomCode).limit(1);
-        if (!data?.length) break;
+        const { data } = await supabaseClient.from("rooms").select("id").eq("room_code", roomCode).maybeSingle();
+        if (!data) break;
         roomCode = generateCode().toUpperCase();
       }
 
@@ -822,10 +807,9 @@
         .from("rooms")
         .select("id, room_code, created_by, created_at")
         .eq("room_code", code)
-        .limit(1);
+        .maybeSingle();
 
       if (roomError) return setStatus(els.menuStatus, roomError.message, true);
-      const roomData = roomRows?.[0] || null;
       if (!roomData) return setStatus(els.menuStatus, "Room not found", true);
 
       await enterRoom(roomData, false);
@@ -965,7 +949,6 @@
 
     async function bootToMenu() {
       els.menuUser.textContent = appState.profile?.username || appState.currentUser?.email || "User";
-      els.myFriendCode.textContent = appState.profile?.friend_code || "-";
       await Promise.all([loadJoinedRooms(), renderFriends()]);
       renderSavedRooms();
       showScreen(els.menuScreen);
@@ -1092,10 +1075,6 @@
       supabaseClient.auth.onAuthStateChange(async (_event, session) => {
         if (session?.user) {
           await hydrateAuthSession();
-        } else {
-          appState.currentUser = null;
-          appState.profile = null;
-          showScreen(els.authScreen);
         }
       });
     }
